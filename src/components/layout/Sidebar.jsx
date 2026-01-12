@@ -26,6 +26,7 @@ const Sidebar = ({ role }) => {
 
     const adminLinks = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+        { name: 'Arizalar', path: '/admin/registration-requests', icon: Bell },
         { name: 'Students', path: '/admin/students', icon: GraduationCap },
         { name: 'Teachers', path: '/admin/teachers', icon: Users },
         { name: 'Parents', path: '/admin/parents', icon: Users }, // Using generic users icon for now

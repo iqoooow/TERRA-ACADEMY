@@ -2,10 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StudentList from './pages/admin/students/StudentList';
 import TeacherList from './pages/admin/teachers/TeacherList';
 import ParentList from './pages/admin/parents/ParentList';
+import RegistrationRequests from './pages/admin/RegistrationRequests';
 import SubjectList from './pages/admin/courses/SubjectList';
 import GroupList from './pages/admin/courses/GroupList';
 import FinanceList from './pages/admin/finance/FinanceList';
@@ -30,11 +32,13 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Owner / Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
             <Route element={<MainLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/registration-requests" element={<RegistrationRequests />} />
               <Route path="/admin/students" element={<StudentList />} />
               <Route path="/admin/teachers" element={<TeacherList />} />
               <Route path="/admin/parents" element={<ParentList />} />

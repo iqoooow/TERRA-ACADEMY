@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Terminal, BookOpen, GraduationCap, Users } from 'lucide-react';
 
 const Login = () => {
-    const { login } = useAuth();
+    const { login, logout } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -16,20 +16,20 @@ const Login = () => {
         setIsLoading(true);
         setError('');
 
-        // Simulate network delay for effect
-        setTimeout(async () => {
-            const { success, role, error: loginError } = await login(email, password);
-            setIsLoading(false);
-            if (success) {
-                if (role === 'owner') navigate('/admin/dashboard');
-                else if (role === 'teacher') navigate('/teacher/dashboard');
-                else if (role === 'student') navigate('/student/dashboard');
-                else if (role === 'parent') navigate('/parent/dashboard');
-                else navigate('/dashboard'); // Standard fallback
-            } else {
-                setError(loginError || 'Invalid credentials. Please try again.');
-            }
-        }, 800);
+        const { success, role, status, error: loginError } = await login(email, password);
+        setIsLoading(false);
+        if (success) {
+            // Status check removed per user request - allow login for all statuses
+            // if (status === 'pending') { ... } 
+
+            if (role === 'owner') navigate('/admin/dashboard');
+            else if (role === 'teacher') navigate('/teacher/dashboard');
+            else if (role === 'student') navigate('/student/dashboard');
+            else if (role === 'parent') navigate('/parent/dashboard');
+            else navigate('/admin/dashboard');
+        } else {
+            setError(loginError || 'Invalid credentials. Please try again.');
+        }
     };
 
     return (
@@ -86,6 +86,11 @@ const Login = () => {
                     >
                         {isLoading ? 'Authenticating...' : 'Sign In'}
                     </button>
+                    <div className="mt-4 text-center">
+                        <p className="text-gray-400 text-sm">
+                            Don't have an account? <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Register</Link>
+                        </p>
+                    </div>
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-gray-700 text-center text-xs text-gray-500">

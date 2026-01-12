@@ -17,13 +17,20 @@ export const AuthProvider = ({ children }) => {
             try {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('role, full_name')
+                    .select('*')
                     .eq('id', u.id)
                     .single();
-                return { ...u, role: profile?.role || 'student', name: profile?.full_name || u.email };
+
+                return {
+                    ...u,
+                    role: profile?.role || 'student',
+                    status: 'approved', // Default to approved since column missing
+                    name: profile?.full_name || profile?.first_name || u.email,
+                    profileData: profile // Store full profile data
+                };
             } catch (err) {
                 console.error('Error fetching profile:', err);
-                return { ...u, role: 'student', name: u.email };
+                return { ...u, role: 'student', status: 'approved', name: u.email };
             }
         };
 
@@ -47,8 +54,9 @@ export const AuthProvider = ({ children }) => {
 
         initializeAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
+                // If the event is SIGN_IN or similar, we might need to re-fetch profile to get latest status
                 const enrichedUser = await fetchProfile(session.user);
                 if (isMounted) {
                     setUser(enrichedUser);
@@ -76,25 +84,50 @@ export const AuthProvider = ({ children }) => {
             });
 
             if (error) {
-                console.error('Login error:', error.message);
                 return { success: false, error: error.message };
             }
 
-            // Fetch profile to get role for immediate redirection in Login.jsx
+            // Fetch profile to check role
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single();
 
-            console.log('Login: Supabase User ID:', user.id);
-            console.log('Login: Profile data from DB:', profile);
-            if (profileError) console.error('Login: Profile fetch error:', profileError.message);
+            if (profileError) {
+                console.error('Login: Profile fetch error:', profileError.message);
+                return { success: true, role: 'student', status: 'approved' }; // Default allowed
+            }
 
-            return { success: true, role: profile?.role || 'student' };
+            return {
+                success: true,
+                role: profile?.role || 'student',
+                status: 'approved' // Always approved
+            };
         } catch (err) {
             console.error('Unexpected login error:', err);
             return { success: false, error: 'Tizimga kirishda kutilmagan xatolik yuz berdi.' };
+        }
+    };
+
+    const register = async (email, password, metadata) => {
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: metadata
+                }
+            });
+
+            if (error) return { success: false, error: error.message };
+
+            // Note: The triggers on the Supabase side should handle profile creation.
+            // But we might want to manually ensure it if triggers aren't 100% reliable/setup.
+            // For now, we rely on the implementation plan's assumption of using Metadata/Triggers or Manual Updates.
+            return { success: true, user: data.user };
+        } catch (err) {
+            return { success: false, error: err.message };
         }
     };
 
@@ -109,6 +142,7 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         login,
+        register,
         logout,
         loading
     };
