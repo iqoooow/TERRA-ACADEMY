@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, GraduationCap, CreditCard, Activity } from 'lucide-react';
 import StatsCard from '../../components/ui/StatsCard';
+import { supabase } from '../../lib/supabase';
 import {
     LineChart,
     Line,
@@ -14,14 +15,59 @@ import {
 } from 'recharts';
 
 const AdminDashboard = () => {
-    // Mock Data
-    const stats = [
-        { title: 'Total Students', value: '1,240', change: '+12%', icon: GraduationCap, color: 'blue' },
-        { title: 'Total Teachers', value: '48', change: '+4%', icon: Users, color: 'purple' },
-        { title: 'Revenue (Monthly)', value: '$52,000', change: '+8%', icon: CreditCard, color: 'green' },
-        { title: 'Active Groups', value: '36', change: '-2%', icon: Activity, color: 'orange' },
-    ];
+    const [stats, setStats] = useState([
+        { title: 'Total Students', value: '...', change: '0%', icon: GraduationCap, color: 'blue' },
+        { title: 'Total Teachers', value: '...', change: '0%', icon: Users, color: 'purple' },
+        { title: 'Revenue', value: '...', change: '0%', icon: CreditCard, color: 'green' },
+        { title: 'Active Groups', value: '...', change: '0%', icon: Activity, color: 'orange' },
+    ]);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                // Students count
+                const { count: studentCount } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('role', 'student');
+
+                // Teachers count
+                const { count: teacherCount } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('role', 'teacher');
+
+                // Groups count
+                const { count: groupCount } = await supabase
+                    .from('groups')
+                    .select('*', { count: 'exact', head: true });
+
+                // Revenue (Sum of 'paid' payments)
+                const { data: payments } = await supabase
+                    .from('payments')
+                    .select('amount')
+                    .eq('status', 'paid');
+
+                const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+                setStats([
+                    { title: 'Total Students', value: studentCount || 0, change: '+12%', icon: GraduationCap, color: 'blue' },
+                    { title: 'Total Teachers', value: teacherCount || 0, change: '+4%', icon: Users, color: 'purple' },
+                    { title: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, change: '+8%', icon: CreditCard, color: 'green' },
+                    { title: 'Active Groups', value: groupCount || 0, change: '-2%', icon: Activity, color: 'orange' },
+                ]);
+            } catch (error) {
+                console.error('Error fetching dashboard stats:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    // Mock Data for charts (keep for UI demo purposes, can be made dynamic later)
     const enrollmentData = [
         { name: 'Jan', students: 800 },
         { name: 'Feb', students: 900 },
