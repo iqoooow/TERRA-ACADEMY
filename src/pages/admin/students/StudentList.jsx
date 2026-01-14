@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
 import { Search, Plus, Filter, MoreVertical } from 'lucide-react';
 
+import { supabase } from '../../../lib/supabase';
+
 const StudentList = () => {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -13,21 +15,36 @@ const StudentList = () => {
         phone: ''
     });
 
-    useEffect(() => {
-        fetchStudents();
-    }, []);
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 10;
 
-    const fetchStudents = async () => {
+    useEffect(() => {
+        fetchStudents(currentPage);
+    }, [currentPage]);
+
+    const fetchStudents = async (page = 1) => {
+        setLoading(true);
         try {
-            const { supabase } = await import('../../../lib/supabase');
-            const { data, error } = await supabase
+            // Calculate range
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, count, error } = await supabase
                 .from('profiles')
-                .select('id, first_name, last_name, full_name, phone, status, role')
+                .select('id, first_name, last_name, full_name, phone, status, role', { count: 'exact' })
                 .eq('role', 'student')
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
+
             setStudents(data || []);
+
+            if (count) {
+                setTotalPages(Math.ceil(count / pageSize));
+            }
         } catch (err) {
             console.error('Error fetching students:', err);
         } finally {
@@ -38,7 +55,7 @@ const StudentList = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this student?')) return;
         try {
-            const { supabase } = await import('../../../lib/supabase');
+            // const { supabase } = await import('../../../lib/supabase'); // Removed dynamic import
             const { error } = await supabase.from('profiles').delete().eq('id', id);
             if (error) throw error;
             fetchStudents();
@@ -71,7 +88,7 @@ const StudentList = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const { supabase } = await import('../../../lib/supabase');
+            // const { supabase } = await import('../../../lib/supabase'); // Removed dynamic import
 
             if (editingStudent) {
                 const { error } = await supabase
@@ -172,6 +189,31 @@ const StudentList = () => {
                         </TableRow>
                     ))}
                 </Table>
+            )}
+
+            {/* Pagination Controls */}
+            {students.length > 0 && (
+                <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
+                    <div className="text-sm text-gray-500">
+                        Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* Modal */}
