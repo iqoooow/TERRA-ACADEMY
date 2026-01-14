@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
 import { Search, Plus, Filter, MoreVertical, BookOpen } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
 
 const SubjectList = () => {
     const [subjects, setSubjects] = useState([]);
@@ -13,17 +14,27 @@ const SubjectList = () => {
         description: ''
     });
 
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 10;
 
-    const fetchSubjects = async () => {
+    useEffect(() => {
+        fetchSubjects(currentPage);
+    }, [currentPage]);
+
+    const fetchSubjects = async (page = 1) => {
+        setLoading(true);
         try {
-            const { supabase } = await import('../../../lib/supabase');
-            const { data, error } = await supabase
+            // Calculate range
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, count, error } = await supabase
                 .from('subjects')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
 
@@ -37,6 +48,10 @@ const SubjectList = () => {
             })) || [];
 
             setSubjects(formattedSubjects);
+
+            if (count) {
+                setTotalPages(Math.ceil(count / pageSize));
+            }
         } catch (err) {
             console.error('Error fetching subjects:', err);
         } finally {
@@ -47,10 +62,9 @@ const SubjectList = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this subject?')) return;
         try {
-            const { supabase } = await import('../../../lib/supabase');
             const { error } = await supabase.from('subjects').delete().eq('id', id);
             if (error) throw error;
-            fetchSubjects();
+            fetchSubjects(currentPage);
         } catch (err) {
             console.error('Error deleting subject:', err);
             alert('Error deleting subject');
@@ -80,7 +94,6 @@ const SubjectList = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const { supabase } = await import('../../../lib/supabase');
             const payload = {
                 name: formData.name,
                 price: formData.price,
@@ -101,7 +114,7 @@ const SubjectList = () => {
             }
 
             setIsFormatModalOpen(false);
-            fetchSubjects();
+            fetchSubjects(currentPage);
         } catch (err) {
             console.error('Error saving subject:', err);
             alert('Error saving subject');
@@ -126,37 +139,64 @@ const SubjectList = () => {
             {loading ? (
                 <div className="text-center py-10">Loading subjects...</div>
             ) : (
-                <Table headers={['Subject Name', 'Price', 'Description', 'Status', 'Actions']}>
-                    {subjects.map((sub) => (
-                        <TableRow key={sub.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                        <BookOpen size={20} />
+                <>
+                    <Table headers={['Subject Name', 'Price', 'Description', 'Status', 'Actions']}>
+                        {subjects.map((sub) => (
+                            <TableRow key={sub.id}>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                            <BookOpen size={20} />
+                                        </div>
+                                        <div className="font-medium text-gray-900">{sub.name}</div>
                                     </div>
-                                    <div className="font-medium text-gray-900">{sub.name}</div>
-                                </div>
-                            </TableCell>
-                            <TableCell>{sub.price ? `$${sub.price}` : '-'}</TableCell>
-                            <TableCell className="truncate max-w-xs">{sub.description || '-'}</TableCell>
-                            <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${sub.bg}`}>
-                                    {sub.status}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleEdit(sub)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors">
-                                        Edit
-                                    </button>
-                                    <button onClick={() => handleDelete(sub.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
-                                        Delete
-                                    </button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </Table>
+                                </TableCell>
+                                <TableCell>{sub.price ? `$${sub.price}` : '-'}</TableCell>
+                                <TableCell className="truncate max-w-xs">{sub.description || '-'}</TableCell>
+                                <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${sub.bg}`}>
+                                        {sub.status}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleEdit(sub)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors">
+                                            Edit
+                                        </button>
+                                        <button onClick={() => handleDelete(sub.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </Table>
+
+                    {/* Pagination Controls */}
+                    {subjects.length > 0 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
+                            <div className="text-sm text-gray-500">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Modal */}
@@ -219,4 +259,3 @@ const SubjectList = () => {
 };
 
 export default SubjectList;
-
