@@ -33,7 +33,7 @@ const StudentList = () => {
 
             const { data, count, error } = await supabase
                 .from('profiles')
-                .select('id, first_name, last_name, full_name, phone, status, role', { count: 'exact' })
+                .select('id, first_name, last_name, full_name, phone, status, role, student_code', { count: 'exact' })
                 .eq('role', 'student')
                 .order('created_at', { ascending: false })
                 .range(from, to);
@@ -85,11 +85,19 @@ const StudentList = () => {
         setIsFormatModalOpen(true);
     };
 
+    // Helper to generate unique student code
+    const generateStudentCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = 'STU-';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // const { supabase } = await import('../../../lib/supabase'); // Removed dynamic import
-
             if (editingStudent) {
                 const { error } = await supabase
                     .from('profiles')
@@ -97,11 +105,13 @@ const StudentList = () => {
                         first_name: formData.first_name,
                         last_name: formData.last_name,
                         phone: formData.phone,
+                        // Ensure code exists on edit if missing
+                        student_code: editingStudent.student_code || generateStudentCode()
                     })
                     .eq('id', editingStudent.id);
                 if (error) throw error;
             } else {
-                alert("To add a new student, please ask them to register at the registration page. Or use the 'Invite' feature (coming soon). currently we only support editing existing profiles.");
+                alert("To add a new student, please ask them to register at the registration page. Individual creation with student_code generation will be fully supported once the invitation system is ready.");
                 return;
             }
 
@@ -128,14 +138,13 @@ const StudentList = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Students</h1>
-                    <p className="text-gray-500 text-sm">Manage your academy students</p>
+                    <p className="text-gray-500 text-sm">Manage your academy students and their unique codes</p>
                 </div>
                 <div className="flex gap-3">
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
                         <Filter size={18} />
                         <span>Filter</span>
                     </button>
-                    {/* Add Student functionality can be added later or via Invite */}
                     <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30">
                         <Plus size={18} />
                         <span>Add Student</span>
@@ -148,7 +157,7 @@ const StudentList = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
                     type="text"
-                    placeholder="Search students by name or phone..."
+                    placeholder="Search students by name, phone or code..."
                     className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400"
                 />
             </div>
@@ -157,7 +166,7 @@ const StudentList = () => {
             {loading ? (
                 <div className="text-center py-10">Loading students...</div>
             ) : (
-                <Table headers={['Student Name', 'Phone Number', 'Status', 'Actions']}>
+                <Table headers={['Student Name', 'Student Code', 'Phone Number', 'Status', 'Actions']}>
                     {students.map((student) => (
                         <TableRow key={student.id}>
                             <TableCell>
@@ -169,6 +178,11 @@ const StudentList = () => {
                                         {student.full_name || `${student.first_name || ''} ${student.last_name || ''}`}
                                     </div>
                                 </div>
+                            </TableCell>
+                            <TableCell>
+                                <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono text-blue-600 font-bold">
+                                    {student.student_code || '---'}
+                                </code>
                             </TableCell>
                             <TableCell>{student.phone || '-'}</TableCell>
                             <TableCell>

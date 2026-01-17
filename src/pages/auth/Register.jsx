@@ -49,8 +49,27 @@ const Register = () => {
         }
 
         try {
+            const { supabase } = await import('../../lib/supabase');
+
+            // If role is parent, verify student_code exists first
+            let studentToLink = null;
+            if (selectedRole === 'parent' && formData.student_code) {
+                const { data: studentData, error: studentError } = await supabase
+                    .from('profiles')
+                    .select('id, first_name, last_name')
+                    .eq('student_code', formData.student_code.toUpperCase())
+                    .eq('role', 'student')
+                    .single();
+
+                if (studentError || !studentData) {
+                    setError('Farzand kodi notoʻgʻri yoki bunday oʻquvchi topilmadi');
+                    setIsLoading(false);
+                    return;
+                }
+                studentToLink = studentData;
+            }
+
             // Register with Supabase
-            // Metadata for trigger-based profile creation
             const metadata = {
                 full_name: `${formData.first_name} ${formData.last_name}`,
                 role: selectedRole,
@@ -59,31 +78,42 @@ const Register = () => {
             const { success, user, error: regError } = await register(formData.email, formData.password, metadata);
 
             if (success) {
-                // Manually update the profile with extra fields (phone, birth_date, status)
-                // just in case the trigger didn't handle them or to be sure.
-                // We need to import supabase here or use a helper, but easier if we assume 
-                // the user is logged in after registration (which Supabase does by default)
-                // OR we can rely on the user to be created and then we can update it if RLS allows.
-                // Since 'register' in AuthContext returns 'user', we can try to update it.
-
-                // However, directly importing supabase here is cleaner to avoid clogging AuthContext with specific update logic.
-                // Dynamic import or importing from lib.
-                const { supabase } = await import('../../lib/supabase');
-
-                const { error: updateError } = await supabase
+                console.log('User registered successfully:', user.id);
+                // Update profile with extra fields
+                const { error: profileError } = await supabase
                     .from('profiles')
                     .update({
                         first_name: formData.first_name,
                         last_name: formData.last_name,
                         phone: formData.phone,
                         birth_date: formData.birth_date,
-                        status: selectedRole === 'owner' ? 'approved' : 'pending' // Auto-approve owner, others pending
+                        status: 'pending'
                     })
                     .eq('id', user.id);
 
-                if (updateError) {
-                    console.error('Profile update error:', updateError);
-                    // Don't block success screen, but log it.
+                if (profileError) {
+                    console.error('Profile update error:', profileError);
+                } else {
+                    console.log('Profile updated successfully');
+                }
+
+                // Create link if student code was provided
+                if (studentToLink) {
+                    console.log('Attempting to link parent to student:', studentToLink.id);
+                    const { error: linkError } = await supabase
+                        .from('parent_student')
+                        .insert({
+                            parent_id: user.id,
+                            student_id: studentToLink.id,
+                            status: 'pending'
+                        });
+
+                    if (linkError) {
+                        console.error('Link creation error:', linkError);
+                        alert('Xatolik: Talabani bogʻlashda xato yuz berdi: ' + linkError.message);
+                    } else {
+                        console.log('Parent-student link created successfully');
+                    }
                 }
 
                 setSuccess(true);
@@ -91,8 +121,8 @@ const Register = () => {
                 setError(regError || 'Roʻyxatdan oʻtishda xatolik yuz berdi');
             }
         } catch (err) {
-            console.error(err);
-            setError('Tizim xatoligi');
+            console.error('Unexpected error in handleSubmit:', err);
+            setError('Tizim xatoligi: ' + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -248,6 +278,25 @@ const Register = () => {
                                     placeholder="••••••••"
                                 />
                             </div>
+
+                            {selectedRole === 'parent' && (
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-blue-400 mb-1 flex items-center gap-2">
+                                        <Shield size={16} /> Farzand kodi (Student Code)
+                                    </label>
+                                    <input
+                                        name="student_code"
+                                        type="text"
+                                        required
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white font-mono uppercase tracking-widest"
+                                        placeholder="STU-XXXXXX"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Oʻquvchiga berilgan maxsus kodni kiriting. Bu farzandingizni profilingizga bogʻlash uchun kerak.
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="md:col-span-2 mt-4">
                                 <button
