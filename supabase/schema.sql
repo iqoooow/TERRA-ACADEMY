@@ -16,14 +16,52 @@ create table if not exists profiles (
 -- Row Level Security for Profiles
 alter table profiles enable row level security;
 
+-- Drop existing policies if they exist, then create them
+drop policy if exists "Public profiles are viewable by everyone." on profiles;
 create policy "Public profiles are viewable by everyone." on profiles
   for select using (true);
 
+drop policy if exists "Users can insert their own profile." on profiles;
 create policy "Users can insert their own profile." on profiles
   for insert with check (auth.uid() = id);
 
+drop policy if exists "Users can update own profile." on profiles;
 create policy "Users can update own profile." on profiles
   for update using (auth.uid() = id);
+
+-- Function to handle new user signup - automatically create profile
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  v_full_name text;
+begin
+  -- Get full_name from metadata or use email, ensure it's at least 3 characters
+  v_full_name := coalesce(new.raw_user_meta_data->>'full_name', new.email);
+  if char_length(v_full_name) < 3 then
+    v_full_name := new.email || ' User';
+  end if;
+  
+  insert into public.profiles (id, full_name, role, status)
+  values (
+    new.id,
+    v_full_name,
+    coalesce(new.raw_user_meta_data->>'role', 'student'),
+    'pending'
+  );
+  return new;
+exception
+  when others then
+    -- If insert fails, log error but don't block user creation
+    raise warning 'Failed to create profile for user %: %', new.id, sqlerrm;
+    return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger to automatically create profile when user signs up
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- Subjects Table
 create table if not exists subjects (
@@ -34,9 +72,13 @@ create table if not exists subjects (
     created_at timestamp with time zone default timezone('utc'::text, now())
 );
 alter table subjects enable row level security;
+drop policy if exists "Subjects viewable by everyone" on subjects;
 create policy "Subjects viewable by everyone" on subjects for select using (true);
+drop policy if exists "Admins can insert subjects" on subjects;
 create policy "Admins can insert subjects" on subjects for insert with check (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
+drop policy if exists "Admins can update subjects" on subjects;
 create policy "Admins can update subjects" on subjects for update using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
+drop policy if exists "Admins can delete subjects" on subjects;
 create policy "Admins can delete subjects" on subjects for delete using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
 
 -- Groups Table
@@ -50,7 +92,9 @@ create table if not exists groups (
     created_at timestamp with time zone default timezone('utc'::text, now())
 );
 alter table groups enable row level security;
+drop policy if exists "Groups viewable by everyone" on groups;
 create policy "Groups viewable by everyone" on groups for select using (true);
+drop policy if exists "Admins can manage groups" on groups;
 create policy "Admins can manage groups" on groups for all using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
 
 -- Student-Group Enrollments (Many-to-Many)
@@ -61,11 +105,13 @@ create table if not exists enrollments (
     enrolled_at timestamp with time zone default timezone('utc'::text, now())
 );
 alter table enrollments enable row level security;
+drop policy if exists "Enrollments viewable by involved parties" on enrollments;
 create policy "Enrollments viewable by involved parties" on enrollments for select using (
     auth.uid() = student_id OR
     exists (select 1 from groups where id = group_id and teacher_id = auth.uid()) OR
     exists (select 1 from profiles where id = auth.uid() and role = 'owner')
 );
+drop policy if exists "Admins can manage enrollments" on enrollments;
 create policy "Admins can manage enrollments" on enrollments for all using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
 
 -- Payments Table
@@ -78,7 +124,14 @@ create table if not exists payments (
     type text, -- e.g. 'tuition', 'books'
     created_at timestamp with time zone default timezone('utc'::text, now())
 );
+
+-- Add missing columns if they don't exist (for existing tables)
+alter table payments add column if not exists type text;
+alter table payments add column if not exists created_at timestamp with time zone default timezone('utc'::text, now());
+
 alter table payments enable row level security;
+drop policy if exists "Admins can manage payments" on payments;
 create policy "Admins can manage payments" on payments for all using (exists (select 1 from profiles where id = auth.uid() and role = 'owner'));
+drop policy if exists "Students can view own payments" on payments;
 create policy "Students can view own payments" on payments for select using (auth.uid() = student_id);
 

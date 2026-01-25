@@ -16,12 +16,9 @@ const Login = () => {
         setIsLoading(true);
         setError('');
 
-        const { success, role, status, error: loginError } = await login(email, password);
+        const { success, role, error: loginError } = await login(email, password);
         setIsLoading(false);
         if (success) {
-            // Status check removed per user request - allow login for all statuses
-            // if (status === 'pending') { ... } 
-
             if (role === 'owner') navigate('/admin/dashboard');
             else if (role === 'teacher') navigate('/teacher/dashboard');
             else if (role === 'student') navigate('/student/dashboard');

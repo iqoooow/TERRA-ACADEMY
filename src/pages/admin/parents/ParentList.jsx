@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Filter, MoreVertical } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
 const ParentList = () => {
@@ -129,20 +129,24 @@ const ParentList = () => {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Parents</h1>
-                    <p className="text-gray-500 text-sm">Manage parents and accounts</p>
-                </div>
-                <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                        <Filter size={18} />
-                        <span>Filter</span>
-                    </button>
-                    <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30">
+        <div className="space-y-4">
+            {/* Header with Search and Add Button */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Izlash..."
+                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                        />
+                    </div>
+                    <button 
+                        onClick={handleAdd} 
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/30 text-sm font-medium"
+                    >
                         <Plus size={18} />
-                        <span>Add Parent</span>
+                        <span>Qo'shish</span>
                     </button>
                 </div>
             </div>
@@ -171,12 +175,20 @@ const ParentList = () => {
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleEdit(p)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors">
-                                            Edit
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => handleEdit(p)} 
+                                            className="w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
+                                            title="Tahrirlash"
+                                        >
+                                            <Pencil size={14} />
                                         </button>
-                                        <button onClick={() => handleDelete(p.id)} className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
-                                            Delete
+                                        <button 
+                                            onClick={() => handleDelete(p.id)} 
+                                            className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
+                                            title="O'chirish"
+                                        >
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
                                 </TableCell>
@@ -186,26 +198,51 @@ const ParentList = () => {
 
                     {/* Pagination Controls */}
                     {parents.length > 0 && (
-                        <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
-                            <div className="text-sm text-gray-500">
-                                Page {currentPage} of {totalPages}
-                            </div>
-                            <div className="flex gap-2">
+                        <div className="flex items-center justify-center gap-4 py-4">
+                            <span className="text-sm text-gray-500">
+                                {parents.length} ta yozuvdan {(currentPage - 1) * pageSize + 1} dan {Math.min(currentPage * pageSize, parents.length)} gacha ko'rsatilmoqda
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={currentPage === 1}
+                                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-500"
+                                >
+                                    «
+                                </button>
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                     disabled={currentPage === 1}
-                                    className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-500"
                                 >
-                                    Previous
+                                    ‹
                                 </button>
+                                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-medium">
+                                    {currentPage}
+                                </span>
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                     disabled={currentPage === totalPages}
-                                    className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-500"
                                 >
-                                    Next
+                                    ›
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(totalPages)}
+                                    disabled={currentPage === totalPages}
+                                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-500"
+                                >
+                                    »
                                 </button>
                             </div>
+                            <select 
+                                className="px-2 py-1 border border-gray-200 rounded text-sm"
+                                defaultValue={pageSize}
+                            >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
                         </div>
                     )}
                 </>

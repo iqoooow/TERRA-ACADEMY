@@ -11,10 +11,14 @@ import RegistrationRequests from './pages/admin/RegistrationRequests';
 import SubjectList from './pages/admin/courses/SubjectList';
 import GroupList from './pages/admin/courses/GroupList';
 import FinanceList from './pages/admin/finance/FinanceList';
+import ScheduleList from './pages/admin/schedule/ScheduleList';
+import AttendanceList from './pages/admin/attendance/AttendanceList';
+import GradeList from './pages/admin/grades/GradeList';
 
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherGroups from './pages/teacher/TeacherGroups';
 import TeacherExams from './pages/teacher/TeacherExams';
+import TeacherGrades from './pages/teacher/TeacherGrades';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentCourses from './pages/student/StudentCourses';
@@ -45,6 +49,9 @@ function App() {
               <Route path="/admin/subjects" element={<SubjectList />} />
               <Route path="/admin/groups" element={<GroupList />} />
               <Route path="/admin/finance" element={<FinanceList />} />
+              <Route path="/admin/schedule" element={<ScheduleList />} />
+              <Route path="/admin/attendance" element={<AttendanceList />} />
+              <Route path="/admin/grades" element={<GradeList />} />
             </Route>
           </Route>
 
@@ -54,6 +61,7 @@ function App() {
               <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
               <Route path="/teacher/groups" element={<TeacherGroups />} />
               <Route path="/teacher/exams" element={<TeacherExams />} />
+              <Route path="/teacher/grades" element={<TeacherGrades />} />
               <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             </Route>
           </Route>
