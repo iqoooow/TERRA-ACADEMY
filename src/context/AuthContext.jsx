@@ -5,20 +5,19 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-// Basic fetch cache to prevent redundant simultaneous profile fetches
-let currentFetch = null;
-let currentFetchUserId = null;
+// Per-user fetch cache to prevent redundant simultaneous profile fetches for the same user
+const fetchCache = new Map();
 
 const fetchProfile = async (u) => {
     if (!u) return null;
 
-    // If we're already fetching for this user, return the existing promise
-    if (currentFetch && currentFetchUserId === u.id) {
-        return currentFetch;
+    // If we're already fetching for this specific user, return the existing promise
+    if (fetchCache.has(u.id)) {
+        return fetchCache.get(u.id);
     }
 
-    currentFetchUserId = u.id;
-    currentFetch = (async () => {
+    // Create a new fetch promise for this user
+    const fetchPromise = (async () => {
         try {
             console.log('Fetching profile for user:', u.id, u.email);
 
@@ -30,7 +29,6 @@ const fetchProfile = async (u) => {
 
             if (error) {
                 // If the signal was aborted, we don't want to default to student
-                // We should probably just return the user as is or throw/return null
                 if (error.message?.includes('aborted') || error.name === 'AbortError') {
                     console.log('Profile fetch aborted, skipping default role assignment');
                     return null;
@@ -48,11 +46,18 @@ const fetchProfile = async (u) => {
                 return { ...u, role: 'student', status: 'approved', name: u.email };
             }
 
-            console.log('Profile fetched successfully. Role:', profile?.role);
+            console.log('Profile fetched successfully. Role:', profile?.role, 'User ID:', u.id);
+            
+            // Verify the profile belongs to the correct user
+            if (profile.id !== u.id) {
+                console.error('Profile ID mismatch! Expected:', u.id, 'Got:', profile.id);
+                throw new Error('Profile ID mismatch');
+            }
+
             return {
                 ...u,
                 role: profile?.role || u.user_metadata?.role || 'student',
-                status: 'approved',
+                status: profile?.status || 'approved',
                 name: profile?.full_name || profile?.first_name || u.email,
                 profileData: profile
             };
@@ -63,15 +68,14 @@ const fetchProfile = async (u) => {
             console.error('Unexpected error in fetchProfile:', err);
             return { ...u, role: 'student', status: 'approved', name: u.email };
         } finally {
-            // Only clear if this was the latest fetch
-            if (currentFetchUserId === u.id) {
-                currentFetch = null;
-                currentFetchUserId = null;
-            }
+            // Remove from cache when done
+            fetchCache.delete(u.id);
         }
     })();
 
-    return currentFetch;
+    // Store the promise in cache
+    fetchCache.set(u.id, fetchPromise);
+    return fetchPromise;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -90,7 +94,16 @@ export const AuthProvider = ({ children }) => {
                 if (isMounted) {
                     if (session?.user) {
                         const enrichedUser = await fetchProfile(session.user);
-                        if (isMounted) setUser(enrichedUser);
+                        const role = enrichedUser?.role || 'student';
+                        const status = enrichedUser?.status || 'pending';
+                        const isOwner = role === 'owner';
+                        if (!isOwner && status !== 'approved') {
+                            await supabase.auth.signOut();
+                            fetchCache.delete(session.user?.id);
+                            if (isMounted) setUser(null);
+                        } else if (isMounted) {
+                            setUser(enrichedUser);
+                        }
                     } else {
                         setUser(null);
                     }
@@ -108,10 +121,21 @@ export const AuthProvider = ({ children }) => {
 
                     if (session?.user) {
                         const enrichedUser = await fetchProfile(session.user);
-                        if (isMounted) setUser(enrichedUser);
+                        const role = enrichedUser?.role || 'student';
+                        const status = enrichedUser?.status || 'pending';
+                        const isOwner = role === 'owner';
+                        if (!isOwner && status !== 'approved') {
+                            await supabase.auth.signOut();
+                            fetchCache.delete(session.user?.id);
+                            if (isMounted) setUser(null);
+                        } else if (isMounted) {
+                            setUser(enrichedUser);
+                        }
                     } else {
                         if (isMounted) {
                             setUser(null);
+                            // Clear cache when user logs out
+                            fetchCache.clear();
                         }
                     }
                     if (isMounted) setLoading(false);
@@ -154,15 +178,23 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: error.message };
             }
 
-            // Immediately fetch profile for the login component to use for redirection
             const enriched = await fetchProfile(data.user);
-            console.log('Login successful. Redirecting as role:', enriched?.role);
+            const role = enriched?.role || 'student';
+            const status = enriched?.status || 'pending';
+            const isOwner = role === 'owner';
 
-            return {
-                success: true,
-                role: enriched?.role || 'student',
-                status: 'approved'
-            };
+            if (!isOwner && status !== 'approved') {
+                await supabase.auth.signOut();
+                fetchCache.delete(data.user?.id);
+                if (status === 'rejected') {
+                    return { success: false, error: 'Arizangiz rad etilgan. Batafsil ma\'lumot uchun administratorga murojaat qiling.' };
+                }
+                return { success: false, error: 'Arizangiz hali tasdiqlanmagan. Administrator tasdiqlaguncha akkauntga kira olmaysiz.' };
+            }
+
+            console.log('Login successful. Redirecting as role:', role);
+            setUser(enriched);
+            return { success: true, role, status: 'approved' };
         } catch (err) {
             console.error('Unexpected login error:', err);
             return { success: false, error: 'Tizimga kirishda kutilmagan xatolik yuz berdi.' };
@@ -190,6 +222,8 @@ export const AuthProvider = ({ children }) => {
         try {
             await supabase.auth.signOut();
             setUser(null);
+            // Clear the fetch cache on logout
+            fetchCache.clear();
         } catch (err) {
             console.error('Logout error:', err);
         }

@@ -28,8 +28,8 @@ export const TableRow = ({ children, className }) => (
     </tr>
 );
 
-export const TableCell = ({ children, className }) => (
-    <td className={cn("px-6 py-4 whitespace-nowrap", className)}>
+export const TableCell = ({ children, className, colSpan }) => (
+    <td className={cn("px-6 py-4 whitespace-nowrap", className)} colSpan={colSpan}>
         {children}
     </td>
 );

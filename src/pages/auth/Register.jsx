@@ -79,22 +79,35 @@ const Register = () => {
 
             if (success) {
                 console.log('User registered successfully:', user.id);
-                // Update profile with extra fields
+                // Insert or update profile with extra fields (upsert)
+                let fullName = `${formData.first_name} ${formData.last_name}`.trim();
+                // Ensure full_name is at least 3 characters (database constraint)
+                if (fullName.length < 3) {
+                    fullName = formData.email || 'New User';
+                }
+                
                 const { error: profileError } = await supabase
                     .from('profiles')
-                    .update({
+                    .upsert({
+                        id: user.id,
+                        full_name: fullName,
                         first_name: formData.first_name,
                         last_name: formData.last_name,
                         phone: formData.phone,
-                        birth_date: formData.birth_date,
+                        birth_date: formData.birth_date || null,
+                        role: selectedRole,
                         status: 'pending'
-                    })
-                    .eq('id', user.id);
+                    }, {
+                        onConflict: 'id'
+                    });
 
                 if (profileError) {
-                    console.error('Profile update error:', profileError);
+                    console.error('Profile upsert error:', profileError);
+                    setError('Profil yaratishda xatolik: ' + profileError.message);
+                    setIsLoading(false);
+                    return;
                 } else {
-                    console.log('Profile updated successfully');
+                    console.log('Profile created/updated successfully');
                 }
 
                 // Create link if student code was provided

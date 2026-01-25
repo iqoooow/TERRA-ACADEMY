@@ -1,63 +1,92 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { GraduationCap, Loader2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import Table, { TableRow, TableCell } from '../../components/ui/Table';
 
-const StudentGrades = () => {
-    // This could also include Schedule or be separate. For brevity, focusing on Grades/Schedule mix.
-    const grades = [
-        { id: 1, subject: 'React Frontend', title: 'Component LifeCycle', score: '95/100', date: '2026-01-01' },
-        { id: 2, subject: 'Advanced Python', title: 'Django Views', score: '88/100', date: '2025-12-29' },
-        { id: 3, subject: 'General English', title: 'Essay Writing', score: '100/100', date: '2025-12-25' },
-    ];
+const TYPE_LABELS = { cefr: 'CEFR', ielts: 'IELTS', test: 'Test', exam: 'Imtihon', quiz: 'Quiz', homework: 'Uy vazifasi', other: 'Boshqa' };
 
-    const weeklySchedule = [
-        { day: 'Monday', time: '14:00', subject: 'React Frontend', room: '204' },
-        { day: 'Wednesday', time: '14:00', subject: 'React Frontend', room: '204' },
-        { day: 'Friday', time: '14:00', subject: 'React Frontend', room: '204' },
-    ];
+const StudentGrades = () => {
+    const { user } = useAuth();
+    const [grades, setGrades] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user?.id) {
+            setGrades([]);
+            setLoading(false);
+            return;
+        }
+        (async () => {
+            setLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('grades')
+                    .select(`
+                        id, title, score, grade_type, date,
+                        groups (id, name)
+                    `)
+                    .eq('student_id', user.id)
+                    .order('date', { ascending: false });
+                if (error) throw error;
+                const rows = (data || []).map((r) => ({
+                    ...r,
+                    subject: r.groups?.name || '—',
+                }));
+                setGrades(rows);
+            } catch (e) {
+                console.error(e);
+                setGrades([]);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [user?.id]);
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">My Grades</h1>
-                    <p className="text-gray-500 text-sm">Recent assessment results</p>
-                </div>
-                <Table headers={['Subject', 'Assessment', 'Score', 'Date']}>
-                    {grades.map((grade) => (
-                        <TableRow key={grade.id}>
-                            <TableCell className="font-medium text-gray-800">{grade.subject}</TableCell>
-                            <TableCell>{grade.title}</TableCell>
-                            <TableCell>
-                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-bold">
-                                    {grade.score}
-                                </span>
-                            </TableCell>
-                            <TableCell>{grade.date}</TableCell>
-                        </TableRow>
-                    ))}
-                </Table>
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                        <GraduationCap size={20} className="text-white" />
+                    </span>
+                    Mening baholarim
+                </h1>
+                <p className="text-gray-500 text-sm mt-2">Topshiriq va imtihon natijalari</p>
             </div>
 
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Weekly Schedule</h1>
-                    <p className="text-gray-500 text-sm">Your upcoming classes</p>
+            {loading ? (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-16 flex items-center justify-center gap-2 text-gray-500">
+                    <Loader2 size={24} className="animate-spin" />
+                    <span>Yuklanmoqda...</span>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                    {weeklySchedule.map((slot, i) => (
-                        <div key={i} className="flex gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
-                            <div className="w-12 text-center pt-1">
-                                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">{slot.day.substring(0, 3)}</div>
-                                <div className="text-sm font-bold text-gray-800">{slot.time}</div>
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-blue-600">{slot.subject}</h4>
-                                <p className="text-xs text-gray-400">Room {slot.room}</p>
-                            </div>
-                        </div>
-                    ))}
+            ) : grades.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-16 text-center">
+                    <GraduationCap size={40} className="text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium">Hozircha baholar yo&apos;q</p>
+                    <p className="text-gray-500 text-sm mt-1">O&apos;qituvchi baho qo&apos;shgach, shu yerda ko&apos;rinadi</p>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <Table headers={['Guruh / Fan', 'Topshiriq / Imtihon', 'Ball', 'Turi', 'Sana']}>
+                        {grades.map((r) => (
+                            <TableRow key={r.id}>
+                                <TableCell className="font-medium text-gray-900">{r.subject}</TableCell>
+                                <TableCell>{r.title}</TableCell>
+                                <TableCell>
+                                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold text-sm">
+                                        {r.score}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="text-gray-600">{TYPE_LABELS[r.grade_type] || r.grade_type}</TableCell>
+                                <TableCell className="text-gray-600">
+                                    {r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('uz-UZ') : '—'}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </Table>
+                </div>
+            )}
         </div>
     );
 };
