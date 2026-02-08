@@ -2,13 +2,100 @@
 
 @theme {
   --color-primary: #0f172a;
-  --color-secondary: #334155;
+  --color-primary-light: #1e293b;
   --color-accent: #3b82f6;
-  --font-sans: "Inter", "sans-serif";
+  --color-accent-hover: #2563eb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+
+  --font-sans: "Outfit", "Inter", system-ui, sans-serif;
+
+  --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+  --radius-premium: 1.5rem;
+  --radius-button: 0.75rem;
 }
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden;
   }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold tracking-tight text-slate-900;
+  }
+
+  /* Custom Scrollbar for premium feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-glass rounded-3xl;
+  }
+
+  .btn-primary {
+    @apply px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-xs;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 font-medium !text-slate-900;
+    color: #0f172a !important;
+  }
+
+  /* Autofill styling to prevent white text on light backgrounds */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: #0f172a !important;
+    /* slate-900 */
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
 }

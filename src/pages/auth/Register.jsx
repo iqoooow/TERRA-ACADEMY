@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { GraduationCap, Users, UserRound, ArrowLeft, CheckCircle2, Shield } from 'lucide-react';
+import { GraduationCap, Users, UserRound, ArrowLeft, CheckCircle2, Shield, Mail, Lock, Phone, User, Calendar, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -9,7 +11,6 @@ const Register = () => {
     const [step, setStep] = useState(1);
     const [selectedRole, setSelectedRole] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -19,13 +20,14 @@ const Register = () => {
         phone: '',
         birth_date: '',
         password: '',
-        password_confirm: ''
+        password_confirm: '',
+        student_code: ''
     });
 
     const roles = [
-        { id: 'teacher', title: 'Teacher', icon: GraduationCap, description: 'Manage classes, students and grades', color: 'blue' },
-        { id: 'student', title: 'Student', icon: UserRound, description: 'Learn, complete tasks and track progress', color: 'indigo' },
-        { id: 'parent', title: 'Parent', icon: Users, description: 'Monitor child performance and payments', color: 'purple' }
+        { id: 'teacher', title: "O'qituvchi", icon: GraduationCap, description: 'Darslarni boshqarish, baholash va o\'quvchilar bilan ishlash', color: 'blue' },
+        { id: 'student', title: "O'quvchi", icon: UserRound, description: 'Bilim olish, vazifalarni bajarish va natijalarni kuzatish', color: 'indigo' },
+        { id: 'parent', title: 'Ota-ona', icon: Users, description: 'Farzand davomati, baholari va to\'lovlarini nazorat qilish', color: 'purple' }
     ];
 
     const handleRoleSelect = (roleId) => {
@@ -39,103 +41,65 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
-        setError('');
 
         if (formData.password !== formData.password_confirm) {
-            setError('Parollar bir-biriga mos kelmadi');
-            setIsLoading(false);
+            toast.error('Parollar bir-biriga mos kelmadi');
             return;
         }
+
+        setIsLoading(true);
 
         try {
             const { supabase } = await import('../../lib/supabase');
 
             // If role is parent, verify student_code exists first
-            let studentToLink = null;
             if (selectedRole === 'parent' && formData.student_code) {
                 const { data: studentData, error: studentError } = await supabase
                     .from('profiles')
-                    .select('id, first_name, last_name')
+                    .select('id')
                     .eq('student_code', formData.student_code.toUpperCase())
                     .eq('role', 'student')
                     .single();
 
                 if (studentError || !studentData) {
-                    setError('Farzand kodi notoʻgʻri yoki bunday oʻquvchi topilmadi');
+                    toast.error('Farzand kodi notoʻgʻri yoki bunday oʻquvchi topilmadi');
                     setIsLoading(false);
                     return;
                 }
-                studentToLink = studentData;
             }
 
-            // Register with Supabase
             const metadata = {
                 full_name: `${formData.first_name} ${formData.last_name}`,
                 role: selectedRole,
             };
 
-            const { success, user, error: regError } = await register(formData.email, formData.password, metadata);
+            const { success: regSuccess, user, error: regError } = await register(formData.email, formData.password, metadata);
 
-            if (success) {
-                console.log('User registered successfully:', user.id);
-                // Insert or update profile with extra fields (upsert)
-                let fullName = `${formData.first_name} ${formData.last_name}`.trim();
-                // Ensure full_name is at least 3 characters (database constraint)
-                if (fullName.length < 3) {
-                    fullName = formData.email || 'New User';
-                }
-                
+            if (regSuccess) {
                 const { error: profileError } = await supabase
                     .from('profiles')
                     .upsert({
                         id: user.id,
-                        full_name: fullName,
+                        full_name: `${formData.first_name} ${formData.last_name}`,
                         first_name: formData.first_name,
                         last_name: formData.last_name,
                         phone: formData.phone,
                         birth_date: formData.birth_date || null,
                         role: selectedRole,
                         status: 'pending'
-                    }, {
-                        onConflict: 'id'
                     });
 
                 if (profileError) {
-                    console.error('Profile upsert error:', profileError);
-                    setError('Profil yaratishda xatolik: ' + profileError.message);
-                    setIsLoading(false);
-                    return;
+                    toast.error('Profil yaratishda xatolik yuz berdi');
                 } else {
-                    console.log('Profile created/updated successfully');
+                    setSuccess(true);
+                    toast.success('Ro\'yxatdan o\'tish muvaffaqiyatli!');
                 }
-
-                // Create link if student code was provided
-                if (studentToLink) {
-                    console.log('Attempting to link parent to student:', studentToLink.id);
-                    const { error: linkError } = await supabase
-                        .from('parent_student')
-                        .insert({
-                            parent_id: user.id,
-                            student_id: studentToLink.id,
-                            status: 'pending'
-                        });
-
-                    if (linkError) {
-                        console.error('Link creation error:', linkError);
-                        alert('Xatolik: Talabani bogʻlashda xato yuz berdi: ' + linkError.message);
-                    } else {
-                        console.log('Parent-student link created successfully');
-                    }
-                }
-
-                setSuccess(true);
             } else {
-                setError(regError || 'Roʻyxatdan oʻtishda xatolik yuz berdi');
+                toast.error(regError || 'Xatolik yuz berdi');
             }
         } catch (err) {
-            console.error('Unexpected error in handleSubmit:', err);
-            setError('Tizim xatoligi: ' + err.message);
+            toast.error('Kutilmagan xatolik yuz berdi');
         } finally {
             setIsLoading(false);
         }
@@ -143,190 +107,179 @@ const Register = () => {
 
     if (success) {
         return (
-            <div className="flex min-h-screen bg-gray-900 items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white/10 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl text-center animate-fade-in">
-                    <div className="flex justify-center mb-6">
-                        <div className="p-4 bg-green-500 rounded-full shadow-lg shadow-green-500/50">
-                            <CheckCircle2 size={48} className="text-white" />
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center"
+                >
+                    <div className="flex justify-center mb-8">
+                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                            <CheckCircle2 size={48} />
                         </div>
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-4">Muvaffaqiyatli!</h2>
-                    <p className="text-gray-300 mb-8">
-                        Roʻyxatdan oʻtish arizangiz qabul qilindi. Admin tasdiqlamaguncha tizimga kira olmaysiz.
+                    <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Qabul qilindi!</h2>
+                    <p className="text-slate-500 font-medium mb-8 leading-relaxed">
+                        Arizangiz muvaffaqiyatli yuborildi. Administrator tasdiqlagandan so'ng tizimga kirishingiz mumkin bo'ladi.
                     </p>
                     <Link
                         to="/login"
-                        className="inline-block w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg transition-all"
+                        className="btn-primary w-full py-4 text-sm uppercase tracking-widest"
                     >
                         Kirish sahifasiga qaytish
                     </Link>
-                </div>
+                </motion.div>
             </div>
         );
     }
 
     return (
-        <div className="flex min-h-screen bg-gray-900 overflow-hidden relative font-sans text-gray-100 p-4">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px] opacity-20"></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full blur-[120px] opacity-20"></div>
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 lg:p-10 relative overflow-hidden font-sans text-slate-100">
+            {/* Background Effects */}
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px]" />
 
-            <div className="z-10 w-full max-w-4xl m-auto">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold tracking-tight text-white mb-2">TERRA ACADEMY</h1>
-                    <p className="text-gray-400">Roʻyxatdan oʻtish va ta’limni boshlang</p>
+            <div className="z-10 w-full max-w-5xl">
+                <div className="text-center mb-12">
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-flex p-3 bg-white/5 rounded-2xl mb-4"
+                    >
+                        <GraduationCap size={32} className="text-blue-400" />
+                    </motion.div>
+                    <h1 className="text-5xl font-black tracking-tighter text-white mb-2 italic">TERRA ACADEMY</h1>
+                    <p className="text-slate-400 font-medium uppercase tracking-widest text-xs">Kelajak ta'limi bugundan boshlanadi</p>
                 </div>
 
-                {step === 1 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
-                        {roles.map((role) => (
-                            <button
-                                key={role.id}
-                                onClick={() => handleRoleSelect(role.id)}
-                                className="group relative bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-2xl hover:border-blue-500/50 hover:bg-white/10 transition-all text-center flex flex-col items-center cursor-pointer"
-                            >
-                                <div className={`p-4 bg-${role.color}-500/20 rounded-2xl mb-6 group-hover:scale-110 transition-transform`}>
-                                    <role.icon size={48} className={`text-${role.color}-400`} />
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-2">{role.title}</h3>
-                                <p className="text-sm text-gray-400 leading-relaxed">{role.description}</p>
-                                <div className="mt-6 px-4 py-2 bg-white/5 rounded-full text-xs font-medium text-gray-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                    Tanlash
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl animate-fade-in-right">
-                        <button
-                            onClick={() => setStep(1)}
-                            className="flex items-center text-gray-400 hover:text-white mb-6 transition-colors"
+                <AnimatePresence mode="wait">
+                    {step === 1 ? (
+                        <motion.div
+                            key="step1"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            className="grid grid-cols-1 md:grid-cols-3 gap-6"
                         >
-                            <ArrowLeft size={18} className="mr-2" />
-                            Rolni qayta tanlash
-                        </button>
-
-                        <h2 className="text-2xl font-bold text-white mb-6 capitalize">{selectedRole} Roʻyxatdan oʻtish</h2>
-
-                        {error && (
-                            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm text-center">
-                                {error}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Ism</label>
-                                <input
-                                    name="first_name"
-                                    type="text"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="Ismingiz"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Familya</label>
-                                <input
-                                    name="last_name"
-                                    type="text"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="Familyangiz"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-                                <input
-                                    name="email"
-                                    type="email"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="email@example.com"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Telefon raqam</label>
-                                <input
-                                    name="phone"
-                                    type="tel"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="+998 90 123 45 67"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Tugʻilgan sana</label>
-                                <input
-                                    name="birth_date"
-                                    type="date"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                />
-                            </div>
-                            <div className="hidden md:block"></div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Parol</label>
-                                <input
-                                    name="password"
-                                    type="password"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Parolni tasdiqlash</label>
-                                <input
-                                    name="password_confirm"
-                                    type="password"
-                                    required
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-
-                            {selectedRole === 'parent' && (
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-blue-400 mb-1 flex items-center gap-2">
-                                        <Shield size={16} /> Farzand kodi (Student Code)
-                                    </label>
-                                    <input
-                                        name="student_code"
-                                        type="text"
-                                        required
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white font-mono uppercase tracking-widest"
-                                        placeholder="STU-XXXXXX"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        Oʻquvchiga berilgan maxsus kodni kiriting. Bu farzandingizni profilingizga bogʻlash uchun kerak.
-                                    </p>
-                                </div>
-                            )}
-
-                            <div className="md:col-span-2 mt-4">
+                            {roles.map((role, idx) => (
                                 <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg shadow-lg shadow-blue-600/30 transition-all transform hover:scale-[1.01] active:scale-[0.99] ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    key={role.id}
+                                    onClick={() => handleRoleSelect(role.id)}
+                                    className="group relative bg-white border border-white/10 p-10 rounded-[2.5rem] hover:shadow-2xl hover:shadow-blue-500/10 transition-all text-center flex flex-col items-center cursor-pointer overflow-hidden"
                                 >
-                                    {isLoading ? 'Yuborilmoqda...' : 'Roʻyxatdan oʻtish'}
+                                    <div className={`p-6 bg-slate-100 rounded-3xl mb-8 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
+                                        <role.icon size={48} strokeWidth={1.5} />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">{role.title}</h3>
+                                    <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">{role.description}</p>
+                                    <div className="inline-flex items-center gap-2 px-6 py-2 bg-slate-100 text-slate-900 group-hover:bg-blue-600 group-hover:text-white rounded-full text-xs font-black uppercase tracking-widest transition-all">
+                                        Tanlash <ArrowRight size={14} />
+                                    </div>
                                 </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
+                            ))}
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="step2"
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50 }}
+                            className="max-w-3xl mx-auto bg-white p-8 lg:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden text-slate-900"
+                        >
+                            <button
+                                onClick={() => setStep(1)}
+                                className="inline-flex items-center text-slate-400 hover:text-slate-900 mb-8 transition-colors font-bold text-sm uppercase tracking-widest"
+                            >
+                                <ArrowLeft size={18} className="mr-2" />
+                                Orqaga
+                            </button>
 
-                <div className="mt-8 text-center">
-                    <p className="text-gray-500 text-sm">
-                        Akkauntingiz bormi? <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium">Kirish</Link>
+                            <div className="mb-10">
+                                <span className="text-blue-600 font-black uppercase tracking-[0.2em] text-[10px] bg-blue-50 px-3 py-1 rounded-full">{selectedRole} sifati ro'yxatdan o'tish</span>
+                                <h2 className="text-3xl font-black text-slate-900 mt-3 tracking-tight">Ma'lumotlarni to'ldiring</h2>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ism</label>
+                                    <div className="relative group/input">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="first_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Ali" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Familya</label>
+                                    <div className="relative group/input">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="last_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Valiyev" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label>
+                                    <div className="relative group/input">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="email" type="email" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="ali@example.com" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Telefon</label>
+                                    <div className="relative group/input">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="phone" type="tel" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="+998 90 123 45 67" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tug'ilgan sana</label>
+                                    <div className="relative group/input">
+                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="birth_date" type="date" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" />
+                                    </div>
+                                </div>
+
+                                {selectedRole === 'parent' && (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Farzand kodi</label>
+                                        <div className="relative group/input">
+                                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+                                            <input name="student_code" required onChange={handleChange} className="input-field pl-12 border-blue-200 bg-blue-50 uppercase font-mono tracking-widest" placeholder="STU-XXXXXX" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Parol</label>
+                                    <div className="relative group/input">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="password" type="password" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="••••••••" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tasdiqlash</label>
+                                    <div className="relative group/input">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                        <input name="password_confirm" type="password" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="••••••••" />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 mt-6">
+                                    <motion.button
+                                        whileHover={{ scale: 1.01 }}
+                                        whileTap={{ scale: 0.99 }}
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="btn-primary w-full py-4 text-sm uppercase tracking-widest"
+                                    >
+                                        {isLoading ? <Loader2 className="animate-spin" /> : 'Ro\'yxatdan o\'tish'}
+                                    </motion.button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className="mt-12 text-center">
+                    <p className="text-slate-500 font-bold text-sm uppercase tracking-widest">
+                        Akkauntingiz bormi? <Link to="/login" className="text-blue-400 hover:text-white transition-colors ml-2 underline decoration-2 underline-offset-4">Kirish</Link>
                     </p>
                 </div>
             </div>
@@ -335,3 +288,4 @@ const Register = () => {
 };
 
 export default Register;
+
