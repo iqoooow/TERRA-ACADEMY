@@ -1,19 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StatsCard from '../../components/ui/StatsCard';
-import { BookOpen, Trophy, Clock, Search } from 'lucide-react';
+import { BookOpen, Trophy, Clock, Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import {
     RadialBarChart,
     RadialBar,
     Legend,
     ResponsiveContainer
 } from 'recharts';
+import { format } from 'date-fns';
 
 const StudentDashboard = () => {
-    const stats = [
+    const [stats, setStats] = useState([
         { title: 'GPA Score', value: '4.8', change: '+0.2', icon: Trophy, color: 'blue' },
-        { title: 'Active Courses', value: '4', icon: BookOpen, color: 'purple' },
-        { title: 'Attendance', value: '98%', change: '-1%', icon: Clock, color: 'green' },
-    ];
+        { title: 'Faol Kurslar', value: '0', icon: BookOpen, color: 'purple' },
+        { title: 'To\'lov Holati', value: 'Tekshirilmoqda...', icon: Clock, color: 'gray' },
+    ]);
+    const [studentName, setStudentName] = useState('');
 
     const upcomingExams = [
         { subject: 'React N1', title: 'Midterm Exam', date: 'Jan 10, 10:00', room: 'Room 204' },
@@ -27,11 +30,65 @@ const StudentDashboard = () => {
         { name: 'Math', uv: 60, fill: '#F59E0B' },
     ];
 
+    useEffect(() => {
+        const fetchStudentStats = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                // 1. Profile
+                const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+                if (profile) setStudentName(profile.full_name);
+
+                // 2. Enrollments
+                const { count: courseCount } = await supabase
+                    .from('enrollments')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('student_id', user.id);
+
+                // 3. Payment Status (Current Month)
+                const currentMonth = format(new Date(), 'yyyy-MM-01');
+                const { data: payment } = await supabase
+                    .from('monthly_payments')
+                    .select('status')
+                    .eq('student_id', user.id)
+                    .eq('payment_month', currentMonth)
+                    .single();
+
+                const paymentStatus = payment ? payment.status : 'pending'; // Default to pending if no record
+                let paymentText = 'Kutilmoqda';
+                let paymentColor = 'yellow';
+                let paymentIcon = Clock;
+
+                if (paymentStatus === 'paid') {
+                    paymentText = 'To\'langan';
+                    paymentColor = 'green';
+                    paymentIcon = CheckCircle;
+                } else if (paymentStatus === 'overdue') {
+                    paymentText = 'Qarzdorlik';
+                    paymentColor = 'red';
+                    paymentIcon = AlertCircle;
+                }
+
+                setStats([
+                    { title: 'GPA Score', value: '4.8', change: '+0.2', icon: Trophy, color: 'blue' }, // Mock GPA
+                    { title: 'Faol Kurslar', value: (courseCount || 0).toString(), icon: BookOpen, color: 'purple' },
+                    { title: 'To\'lov Holati', value: paymentText, icon: paymentIcon, color: paymentColor },
+                ]);
+
+            } catch (error) {
+                console.error('Error fetching student stats:', error);
+            }
+        };
+
+        fetchStudentStats();
+    }, []);
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
             <div>
-                <h1 className="text-2xl font-bold text-gray-800">Student Dashboard</h1>
-                <p className="text-gray-500">Welcome back, Talababek.</p>
+                <h1 className="text-2xl font-bold text-gray-800">O'quvchi Kabineti</h1>
+                <p className="text-gray-500">Xush kelibsiz, {studentName || 'Talaba'}.</p>
             </div>
 
             {/* Stats */}
@@ -44,7 +101,7 @@ const StudentDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Upcoming Tasks */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Upcoming Exams</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Yaqin Imtihonlar</h3>
                     <div className="space-y-4">
                         {upcomingExams.map((exam, i) => (
                             <div key={i} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
@@ -57,7 +114,7 @@ const StudentDashboard = () => {
                                     <p className="text-sm text-gray-500">{exam.subject} • {exam.room}</p>
                                 </div>
                                 <button className="bg-white text-gray-600 border border-gray-200 px-3 py-1 rounded-lg text-sm hover:border-blue-400 hover:text-blue-600">
-                                    Details
+                                    Batafsil
                                 </button>
                             </div>
                         ))}
@@ -66,7 +123,7 @@ const StudentDashboard = () => {
 
                 {/* Progress Chart */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Course Progress</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Kurslardagi Natijalar</h3>
                     <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadialBarChart innerRadius="10%" outerRadius="80%" barSize={20} data={progressData}>

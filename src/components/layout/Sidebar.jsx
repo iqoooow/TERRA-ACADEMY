@@ -42,6 +42,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isMobile }) => {
         { name: 'Dars jadvali', path: '/admin/schedule', icon: Calendar },
         { name: 'Davomat', path: '/admin/attendance', icon: CalendarCheck },
         { name: 'Baholar', path: '/admin/grades', icon: GraduationCap },
+        { name: "Oylik to'lovlar", path: '/admin/payments', icon: CreditCard },
     ];
 
     const teacherLinks = [

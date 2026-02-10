@@ -23,6 +23,7 @@ const FinanceList = lazy(() => import('./pages/admin/finance/FinanceList'));
 const ScheduleList = lazy(() => import('./pages/admin/schedule/ScheduleList'));
 const AttendanceList = lazy(() => import('./pages/admin/attendance/AttendanceList'));
 const GradeList = lazy(() => import('./pages/admin/grades/GradeList'));
+const StudentPayments = lazy(() => import('./pages/admin/finance/StudentPayments'));
 
 // Teacher Pages
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'));
@@ -72,6 +73,7 @@ function App() {
                 <Route path="/admin/schedule" element={<ScheduleList />} />
                 <Route path="/admin/attendance" element={<AttendanceList />} />
                 <Route path="/admin/grades" element={<GradeList />} />
+                <Route path="/admin/payments" element={<StudentPayments />} />
               </Route>
             </Route>
 

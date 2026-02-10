@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StatsCard from '../../components/ui/StatsCard';
-import { Users, BookOpen, Clock, Calendar } from 'lucide-react';
+import { Users, BookOpen, Clock, Calendar, TrendingUp } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import {
     BarChart,
     Bar,
@@ -12,11 +13,13 @@ import {
 } from 'recharts';
 
 const TeacherDashboard = () => {
-    const stats = [
-        { title: 'Total Students', value: '145', icon: Users, color: 'blue' },
-        { title: 'Active Groups', value: '4', icon: BookOpen, color: 'purple' },
-        { title: 'Hours Taught', value: '28h', change: 'this month', icon: Clock, color: 'green' },
-    ];
+    const [stats, setStats] = useState([
+        { title: 'Total Students', value: '0', icon: Users, color: 'blue' },
+        { title: 'Active Groups', value: '0', icon: BookOpen, color: 'purple' },
+        { title: 'Hours Taught', value: '0h', change: 'this month', icon: Clock, color: 'green' },
+    ]);
+    const [loading, setLoading] = useState(true);
+    const [teacherName, setTeacherName] = useState('');
 
     const schedule = [
         { time: '14:00 - 15:30', group: 'React N1', room: 'Room 204', topic: 'Redux Toolkit' },
@@ -29,11 +32,61 @@ const TeacherDashboard = () => {
         { name: 'Python', score: 90 },
     ];
 
+    useEffect(() => {
+        const fetchTeacherStats = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                // 1. Get Teacher Profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('full_name')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profile) setTeacherName(profile.full_name);
+
+                // 2. Get Groups
+                const { data: groups, error: groupsError } = await supabase
+                    .from('groups')
+                    .select('id')
+                    .eq('teacher_id', user.id);
+
+                const groupCount = groups?.length || 0;
+
+                // 3. Get Student Count (via enrollments)
+                let studentCount = 0;
+                if (groupCount > 0) {
+                    const groupIds = groups.map(g => g.id);
+                    const { count } = await supabase
+                        .from('enrollments')
+                        .select('*', { count: 'exact', head: true })
+                        .in('group_id', groupIds);
+                    studentCount = count || 0;
+                }
+
+                setStats([
+                    { title: 'Jami O\'quvchilar', value: studentCount.toString(), icon: Users, color: 'blue' },
+                    { title: 'Faol Guruhlar', value: groupCount.toString(), icon: BookOpen, color: 'purple' },
+                    { title: 'Dars Soatlari', value: '24h', change: 'Bu oy', icon: Clock, color: 'green' }, // Mock for now
+                ]);
+
+            } catch (error) {
+                console.error('Error fetching teacher stats:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTeacherStats();
+    }, []);
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
             <div>
-                <h1 className="text-2xl font-bold text-gray-800">Teacher Dashboard</h1>
-                <p className="text-gray-500">Welcome back, Ustoz Aliyev.</p>
+                <h1 className="text-2xl font-bold text-gray-800">O'qituvchi Kabineti</h1>
+                <p className="text-gray-500">Xush kelibsiz, {teacherName || 'Ustoz'}.</p>
             </div>
 
             {/* Stats */}
@@ -47,7 +100,7 @@ const TeacherDashboard = () => {
                 {/* Today's Schedule */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-800">Today's Schedule</h3>
+                        <h3 className="text-lg font-bold text-gray-800">Bugungi Darslar</h3>
                         <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
                             <Calendar size={20} />
                         </div>
@@ -73,7 +126,7 @@ const TeacherDashboard = () => {
 
                 {/* Group Performance */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Group Performance (Avg)</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Guruhlar Natijasi (O'rtacha)</h3>
                     <div className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={performanceData} layout="vertical">

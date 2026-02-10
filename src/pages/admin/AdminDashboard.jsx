@@ -1,61 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, CreditCard, Activity, Calendar, ArrowUpRight, Filter, Download } from 'lucide-react';
+import { Users, GraduationCap, CreditCard, Activity, ArrowUpRight, Filter, Download } from 'lucide-react';
 import StatsCard from '../../components/ui/StatsCard';
 import { supabase } from '../../lib/supabase';
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
-    AreaChart,
-    Area,
-    BarChart,
-    Bar
+    ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { uz } from 'date-fns/locale';
 
 const AdminDashboard = () => {
     const [stats, setStats] = useState([
-        { title: "O'quvchilar", value: '...', change: '+12%', icon: GraduationCap, color: 'blue' },
-        { title: "O'qituvchilar", value: '...', change: '+2%', icon: Users, color: 'purple' },
-        { title: 'Tushum', value: '...', change: '+8%', icon: CreditCard, color: 'green' },
-        { title: 'Guruhlar', value: '...', change: '+5%', icon: Activity, color: 'orange' },
+        { title: "O'quvchilar", value: '0', change: '...', icon: GraduationCap, color: 'blue' },
+        { title: "O'qituvchilar", value: '0', change: '...', icon: Users, color: 'purple' },
+        { title: 'Tushum (Oy)', value: '0', change: '...', icon: CreditCard, color: 'green' },
+        { title: 'Guruhlar', value: '0', change: '...', icon: Activity, color: 'orange' },
     ]);
+    const [enrollmentData, setEnrollmentData] = useState([]);
+    const [financialData, setFinancialData] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchDashboardData = async () => {
             try {
-                const { count: studentCount } = await supabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'student');
+                // 1. Fetch Counts
+                const { count: studentCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student');
+                const { count: teacherCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher');
+                const { count: groupCount } = await supabase.from('groups').select('*', { count: 'exact', head: true });
 
-                const { count: teacherCount } = await supabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'teacher');
-
-                const { count: groupCount } = await supabase
-                    .from('groups')
-                    .select('*', { count: 'exact', head: true });
-
-                const { data: payments } = await supabase
-                    .from('payments')
-                    .select('amount')
+                // 2. Fetch Financials (Current Month)
+                const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+                const { data: currentMonthPayments } = await supabase
+                    .from('monthly_payments')
+                    .select('paid_amount')
+                    .eq('payment_month', currentMonthStart)
                     .eq('status', 'paid');
 
-                const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+                const currentRevenue = currentMonthPayments?.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0) || 0;
 
                 setStats([
-                    { title: "O'quvchilar", value: studentCount || 0, change: '+12%', icon: GraduationCap, color: 'blue' },
-                    { title: "O'qituvchilar", value: teacherCount || 0, change: '+2%', icon: Users, color: 'purple' },
-                    { title: 'Tushum', value: `${totalRevenue.toLocaleString()} UZS`, change: '+8%', icon: CreditCard, color: 'green' },
-                    { title: 'Guruhlar', value: groupCount || 0, change: '+5%', icon: Activity, color: 'orange' },
+                    { title: "O'quvchilar", value: studentCount || 0, change: 'Faol', icon: GraduationCap, color: 'blue' },
+                    { title: "O'qituvchilar", value: teacherCount || 0, change: 'Faol', icon: Users, color: 'purple' },
+                    { title: 'Tushum (Bu oy)', value: `${currentRevenue.toLocaleString()} UZS`, change: format(new Date(), 'MMMM', { locale: uz }), icon: CreditCard, color: 'green' },
+                    { title: 'Guruhlar', value: groupCount || 0, change: 'Faol', icon: Activity, color: 'orange' },
                 ]);
+
+                // 3. Prepare Chart Data (Last 6 Months)
+                const months = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = subMonths(new Date(), i);
+                    months.push(d);
+                }
+
+                // Parallel fetch for chart data (Optimized)
+                const chartPromises = months.map(async (date) => {
+                    const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
+                    const monthName = format(date, 'MMM', { locale: uz });
+
+                    // Enrollment (New students in that month)
+                    const { count: newStudents } = await supabase
+                        .from('profiles')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('role', 'student')
+                        .gte('created_at', format(startOfMonth(date), "yyyy-MM-dd'T'00:00:00"))
+                        .lte('created_at', format(endOfMonth(date), "yyyy-MM-dd'T'23:59:59"));
+
+                    // Revenue
+                    const { data: payments } = await supabase
+                        .from('monthly_payments')
+                        .select('paid_amount')
+                        .eq('payment_month', monthStart)
+                        .eq('status', 'paid');
+
+                    const revenue = payments?.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0) || 0;
+
+                    return {
+                        name: monthName,
+                        students: newStudents || 0, // Should ideally be total active, but new students is easier to query efficiently without time-series snapshot table
+                        income: revenue
+                    };
+                });
+
+                const chartData = await Promise.all(chartPromises);
+
+                setEnrollmentData(chartData);
+                setFinancialData(chartData);
+
             } catch (error) {
                 console.error('Error fetching dashboard stats:', error);
             } finally {
@@ -63,28 +101,11 @@ const AdminDashboard = () => {
             }
         };
 
-        fetchStats();
+        fetchDashboardData();
     }, []);
 
-    const enrollmentData = [
-        { name: 'Yan', students: 400 },
-        { name: 'Feb', students: 520 },
-        { name: 'Mar', students: 680 },
-        { name: 'Apr', students: 750 },
-        { name: 'May', students: 840 },
-        { name: 'Iyun', students: 920 },
-    ];
-
-    const financialData = [
-        { name: 'Yan', income: 40000 },
-        { name: 'Feb', income: 45000 },
-        { name: 'Mar', income: 48000 },
-        { name: 'Apr', income: 50000 },
-        { name: 'May', income: 52000 },
-    ];
-
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in pb-10">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -96,16 +117,6 @@ const AdminDashboard = () => {
                         Xush kelibsiz, Admin! 👋
                     </motion.h1>
                     <p className="text-slate-500 font-medium">Terra Academy bugungi holati va statistikasi</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                        <Filter size={18} />
-                        Filter
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/25 active:scale-95">
-                        <Download size={18} />
-                        Hisobot yuklash
-                    </button>
                 </div>
             </div>
 
@@ -123,12 +134,12 @@ const AdminDashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="glass-card p-6"
+                    className="glass-card p-6 border border-slate-100 bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">O'quvchilar o'sishi</h3>
-                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Oxirgi 6 oy bo'yicha</p>
+                            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Yangi O'quvchilar</h3>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Oxirgi 6 oy</p>
                         </div>
                         <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
                             <Activity size={20} />
@@ -166,7 +177,7 @@ const AdminDashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="glass-card p-6"
+                    className="glass-card p-6 border border-slate-100 bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <div>
