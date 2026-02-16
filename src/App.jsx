@@ -7,6 +7,7 @@ import LoadingScreen from './components/common/LoadingScreen';
 // Layouts & Components
 import ProtectedRoute from './components/common/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
+import NotFound from './pages/NotFound';
 
 // Auth Pages
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -67,7 +68,7 @@ function App() {
             <Route path="/register" element={<Register />} />
 
             {/* Owner / Admin Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
+            <Route element={<ProtectedRoute allowedRoles={['owner', 'admin']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/registration-requests" element={<RegistrationRequests />} />
@@ -115,6 +116,7 @@ function App() {
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </Router>

@@ -3,7 +3,7 @@ import { ArrowUp, ArrowDown, TrendingUp, TrendingDown, Minus } from 'lucide-reac
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 
-const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, trendLabel = "o'tgan oy" }) => {
+const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, trendLabel = "o'tgan oy", loading = false }) => {
     // Detect trend direction
     const isPositive = typeof change === 'string' && change.startsWith('+');
     const isNegative = typeof change === 'string' && change.startsWith('-');
@@ -72,10 +72,42 @@ const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, 
             border: 'border-violet-100',
             iconBg: 'bg-violet-100 text-violet-600',
             blob: 'bg-violet-500'
+        },
+        emerald: {
+            bg: 'bg-emerald-50 group-hover:bg-emerald-100',
+            text: 'text-emerald-600',
+            border: 'border-emerald-100',
+            iconBg: 'bg-emerald-100 text-emerald-600',
+            blob: 'bg-emerald-500'
+        },
+        teal: {
+            bg: 'bg-teal-50 group-hover:bg-teal-100',
+            text: 'text-teal-600',
+            border: 'border-teal-100',
+            iconBg: 'bg-teal-100 text-teal-600',
+            blob: 'bg-teal-500'
         }
     };
 
     const currentVariant = colorVariants[color] || colorVariants.blue;
+
+    if (loading) {
+        return (
+            <div className="glass-card p-6 h-full flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-6">
+                    <div className="w-full">
+                        <div className="skeleton h-3 w-1/2 mb-3"></div>
+                        <div className="skeleton h-8 w-3/4"></div>
+                    </div>
+                    <div className="skeleton h-12 w-12 shrink-0"></div>
+                </div>
+                <div className="flex gap-2">
+                    <div className="skeleton h-6 w-16"></div>
+                    <div className="skeleton h-6 w-24"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <motion.div

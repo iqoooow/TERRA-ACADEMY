@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import LoadingScreen from "../components/common/LoadingScreen";
 
 const AuthContext = createContext();
 
@@ -19,61 +20,60 @@ const fetchProfile = async (u) => {
     // Create a new fetch promise for this user
     const fetchPromise = (async () => {
         try {
-            console.log('Fetching profile for user:', u.id, u.email);
 
+
+            // 1. Try profiles table
             const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', u.id)
                 .single();
 
-            if (error) {
-                // If the signal was aborted, we don't want to default to student
-                if (error.message?.includes('aborted') || error.name === 'AbortError') {
-                    console.log('Profile fetch aborted, skipping default role assignment');
-                    return null;
-                }
+            if (profile) {
 
-                console.warn('Profile fetch error:', error.message);
-
-                // Check metadata as fallback
-                const metadataRole = u.user_metadata?.role || u.app_metadata?.role;
-                if (metadataRole) {
-                    return { ...u, role: metadataRole, status: 'approved', name: u.email };
-                }
-
-                // Absolute last resort fallback for missing profile row
-                return { ...u, role: 'student', status: 'approved', name: u.email };
+                return {
+                    ...u,
+                    role: profile.role || 'student',
+                    status: profile.status || 'approved',
+                    name: profile.full_name || profile.first_name || u.email,
+                    profileData: profile
+                };
             }
 
-            console.log('Profile fetched successfully. Role:', profile?.role, 'User ID:', u.id);
-            
-            // Verify the profile belongs to the correct user
-            if (profile.id !== u.id) {
-                console.error('Profile ID mismatch! Expected:', u.id, 'Got:', profile.id);
-                throw new Error('Profile ID mismatch');
+            if (error && error.code !== 'PGRST116') { // PGRST116 is 'not found'
+
             }
 
-            return {
-                ...u,
-                role: profile?.role || u.user_metadata?.role || 'student',
-                status: profile?.status || 'approved',
-                name: profile?.full_name || profile?.first_name || u.email,
-                profileData: profile
-            };
+            // 2. Try applications table
+            const { data: application, error: appError } = await supabase
+                .from('applications')
+                .select('*')
+                .eq('id', u.id)
+                .single();
+
+            if (application) {
+
+                return {
+                    ...u,
+                    role: application.role,
+                    status: application.status || 'pending', // Usually pending or rejected here
+                    name: application.full_name || u.email,
+                    applicationData: application
+                };
+            }
+
+            // 3. Last fallback (really shouldn't happen if registration flow is correct)
+
+            return { ...u, role: 'guest', status: 'unknown', name: u.email };
+
         } catch (err) {
-            if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                return null;
-            }
             console.error('Unexpected error in fetchProfile:', err);
-            return { ...u, role: 'student', status: 'approved', name: u.email };
+            return { ...u, role: 'guest', status: 'error', name: u.email };
         } finally {
-            // Remove from cache when done
             fetchCache.delete(u.id);
         }
     })();
 
-    // Store the promise in cache
     fetchCache.set(u.id, fetchPromise);
     return fetchPromise;
 };
@@ -96,8 +96,11 @@ export const AuthProvider = ({ children }) => {
                         const enrichedUser = await fetchProfile(session.user);
                         const role = enrichedUser?.role || 'student';
                         const status = enrichedUser?.status || 'pending';
-                        const isOwner = role === 'owner';
-                        if (!isOwner && status !== 'approved') {
+
+                        // System roles (owner, admin) should be active by default if they exist
+                        const isSystemRole = ['owner', 'admin'].includes(role);
+
+                        if (!isSystemRole && status !== 'approved') {
                             await supabase.auth.signOut();
                             fetchCache.delete(session.user?.id);
                             if (isMounted) setUser(null);
@@ -113,18 +116,16 @@ export const AuthProvider = ({ children }) => {
                 // 2. Set up listener for subsequent changes
                 const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                     if (!isMounted) return;
-
-                    // Skip INITIAL_SESSION event from onAuthStateChange since we handled it with getSession
                     if (event === 'INITIAL_SESSION') return;
-
-                    console.log('Auth state change:', event, session?.user?.email);
 
                     if (session?.user) {
                         const enrichedUser = await fetchProfile(session.user);
                         const role = enrichedUser?.role || 'student';
                         const status = enrichedUser?.status || 'pending';
-                        const isOwner = role === 'owner';
-                        if (!isOwner && status !== 'approved') {
+
+                        const isSystemRole = ['owner', 'admin'].includes(role);
+
+                        if (!isSystemRole && status !== 'approved') {
                             await supabase.auth.signOut();
                             fetchCache.delete(session.user?.id);
                             if (isMounted) setUser(null);
@@ -134,7 +135,6 @@ export const AuthProvider = ({ children }) => {
                     } else {
                         if (isMounted) {
                             setUser(null);
-                            // Clear cache when user logs out
                             fetchCache.clear();
                         }
                     }
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }) => {
         // Fallback timeout to prevent stuck loading screen
         const timeout = setTimeout(() => {
             if (isMounted && loading) {
-                console.warn('Auth initialization timed out');
+
                 setLoading(false);
             }
         }, 10000);
@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            console.log('Attempting login for:', email);
+
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -181,9 +181,9 @@ export const AuthProvider = ({ children }) => {
             const enriched = await fetchProfile(data.user);
             const role = enriched?.role || 'student';
             const status = enriched?.status || 'pending';
-            const isOwner = role === 'owner';
+            const isSystemRole = ['owner', 'admin'].includes(role);
 
-            if (!isOwner && status !== 'approved') {
+            if (!isSystemRole && status !== 'approved') {
                 await supabase.auth.signOut();
                 fetchCache.delete(data.user?.id);
                 if (status === 'rejected') {
@@ -192,7 +192,7 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: 'Arizangiz hali tasdiqlanmagan. Administrator tasdiqlaguncha akkauntga kira olmaysiz.' };
             }
 
-            console.log('Login successful. Redirecting as role:', role);
+
             setUser(enriched);
             return { success: true, role, status: 'approved' };
         } catch (err) {
@@ -240,12 +240,7 @@ export const AuthProvider = ({ children }) => {
     return (
         <AuthContext.Provider value={value}>
             {loading ? (
-                <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white font-sans">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                        <p className="text-gray-400">Loading TERRA ACADEMY...</p>
-                    </div>
-                </div>
+                <LoadingScreen />
             ) : (
                 children
             )}

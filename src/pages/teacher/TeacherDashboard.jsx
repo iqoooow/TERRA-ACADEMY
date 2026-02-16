@@ -17,6 +17,25 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-slate-900 shadow-2xl rounded-2xl p-4 border border-white/10 backdrop-blur-xl">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{label}</p>
+                {payload.map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.payload.fill }}></div>
+                        <p className="text-white font-black text-lg tracking-tight">
+                            {item.dataKey === 'score' ? `${item.value}% O'zlashtirish` : `${item.value} ta o'quvchi`}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
+
 // Helper to parse diverse grade formats
 const parseScore = (scoreStr) => {
     if (!scoreStr) return 0;
@@ -366,16 +385,8 @@ const TeacherDashboard = () => {
                                                 tickLine={false}
                                             />
                                             <Tooltip
+                                                content={<CustomTooltip />}
                                                 cursor={{ fill: '#F8FAFC', radius: 8 }}
-                                                contentStyle={{
-                                                    borderRadius: '16px',
-                                                    border: 'none',
-                                                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)',
-                                                    padding: '12px 16px',
-                                                    fontFamily: 'inherit'
-                                                }}
-                                                labelStyle={{ fontWeight: 800, color: '#1E293B', marginBottom: '4px' }}
-                                                itemStyle={{ fontSize: '13px', fontWeight: 600 }}
                                             />
                                             <Bar dataKey="score" radius={[0, 8, 8, 0]} animationDuration={1500} background={{ fill: '#F8FAFC', radius: [0, 8, 8, 0] }}>
                                                 {groupStats.map((entry, index) => (

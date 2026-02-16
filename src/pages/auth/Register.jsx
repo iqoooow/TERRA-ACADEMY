@@ -13,6 +13,21 @@ const Register = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
+    // Deep link handling (Antigravity Level UX)
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const role = params.get('role');
+        const code = params.get('code');
+
+        if (role && ['student', 'teacher', 'parent'].includes(role)) {
+            setSelectedRole(role);
+            setStep(2);
+        }
+        if (code) {
+            setFormData(prev => ({ ...prev, student_code: code.toUpperCase() }));
+        }
+    }, []);
+
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -76,24 +91,28 @@ const Register = () => {
             const { success: regSuccess, user, error: regError } = await register(formData.email, formData.password, metadata);
 
             if (regSuccess) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .upsert({
+                // Insert into applications table instead of profiles
+                const { error: appError } = await supabase
+                    .from('applications')
+                    .insert({
                         id: user.id,
                         full_name: `${formData.first_name} ${formData.last_name}`,
                         first_name: formData.first_name,
                         last_name: formData.last_name,
                         phone: formData.phone,
+                        email: formData.email,
                         birth_date: formData.birth_date || null,
                         role: selectedRole,
+                        student_code: formData.student_code || null,
                         status: 'pending'
                     });
 
-                if (profileError) {
-                    toast.error('Profil yaratishda xatolik yuz berdi');
+                if (appError) {
+                    console.error('Application insert error:', appError);
+                    toast.error('Arizani saqlashda xatolik yuz berdi');
                 } else {
                     setSuccess(true);
-                    toast.success('Ro\'yxatdan o\'tish muvaffaqiyatli!');
+                    toast.success('Arizangiz qabul qilindi!');
                 }
             } else {
                 toast.error(regError || 'Xatolik yuz berdi');
@@ -156,24 +175,25 @@ const Register = () => {
                     {step === 1 ? (
                         <motion.div
                             key="step1"
-                            initial={{ opacity: 0, scale: 0.95 }}
+                            initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.05 }}
-                            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
+                            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                            className="grid grid-cols-1 md:grid-cols-3 gap-8"
                         >
-                            {roles.map((role, idx) => (
+                            {roles.map((role) => (
                                 <button
                                     key={role.id}
                                     onClick={() => handleRoleSelect(role.id)}
-                                    className="group relative bg-white border border-white/10 p-10 rounded-[2.5rem] hover:shadow-2xl hover:shadow-blue-500/10 transition-all text-center flex flex-col items-center cursor-pointer overflow-hidden"
+                                    className="group relative bg-white/5 backdrop-blur-3xl border border-white/10 p-12 rounded-[3.5rem] hover:bg-white hover:shadow-[0_40px_80px_rgba(0,0,0,0.4)] transition-all duration-500 text-center flex flex-col items-center cursor-pointer overflow-hidden active:scale-95"
                                 >
-                                    <div className={`p-6 bg-slate-100 rounded-3xl mb-8 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
-                                        <role.icon size={48} strokeWidth={1.5} />
+                                    <div className={`p-8 bg-white/5 rounded-[2.5rem] mb-8 group-hover:scale-110 group-hover:bg-${role.color}-600 group-hover:text-white transition-all duration-500 shadow-2xl group-hover:shadow-${role.color}-500/40 text-${role.color}-400`}>
+                                        <role.icon size={56} strokeWidth={1.2} />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">{role.title}</h3>
-                                    <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">{role.description}</p>
-                                    <div className="inline-flex items-center gap-2 px-6 py-2 bg-slate-100 text-slate-900 group-hover:bg-blue-600 group-hover:text-white rounded-full text-xs font-black uppercase tracking-widest transition-all">
-                                        Tanlash <ArrowRight size={14} />
+                                    <h3 className="text-3xl font-black text-white group-hover:text-slate-900 mb-4 tracking-tighter transition-colors">{role.title}</h3>
+                                    <p className="text-slate-400 group-hover:text-slate-500 font-bold text-xs leading-relaxed mb-10 uppercase tracking-widest">{role.description}</p>
+                                    <div className={`inline-flex items-center gap-3 px-8 py-3 bg-white/5 text-white group-hover:bg-${role.color}-600 group-hover:text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-transparent`}>
+                                        Begin Selection <ArrowRight size={16} />
                                     </div>
                                 </button>
                             ))}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Pencil, Trash2, Users, UsersRound, X, ChevronDown, Check, Clock, CalendarDays, BookOpen, GraduationCap, Filter } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Users, UsersRound, X, ChevronDown, Check, Clock, CalendarDays, BookOpen, GraduationCap, Filter, Download, UserCheck, RefreshCw, PieChart } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import StatsCard from '../../../components/ui/StatsCard';
+import EmptyState from '../../../components/ui/EmptyState';
 
 // Searchable Select Component (Premium)
 const SearchableSelect = ({ value, onChange, options, placeholder, displayKey = 'name', valueKey = 'id', disabled = false }) => {
@@ -83,8 +85,8 @@ const SearchableSelect = ({ value, onChange, options, placeholder, displayKey = 
 // Day Checkbox Component (Premium)
 const DayCheckbox = ({ day, label, checked, onChange }) => (
     <label className={`flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 ${checked
-            ? 'border-blue-500 bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-            : 'border-slate-100 bg-white text-slate-500 hover:border-blue-200 hover:bg-blue-50'
+        ? 'border-blue-500 bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+        : 'border-slate-100 bg-white text-slate-500 hover:border-blue-200 hover:bg-blue-50'
         }`}>
         <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
         <span className="text-xs font-black uppercase tracking-wider">{label}</span>
@@ -400,40 +402,96 @@ const GroupList = () => {
         s.name.toLowerCase().includes(studentSearch.toLowerCase())
     );
 
+    const stats = {
+        total: groups.length,
+        students: groups.reduce((sum, g) => sum + g.students, 0),
+        teachers: new Set(groups.map(g => g.teacher_id)).size,
+        active: groups.filter(g => g.status === 'Active').length
+    };
+
     return (
-        <div className="space-y-6 animate-fade-in pb-10">
-            {/* Header with Search and Add Button */}
+        <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
+            {/* Intelligence Header */}
+            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-600 via-emerald-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
+                <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] blend-overlay"></div>
+
+                <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                    <div>
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 backdrop-blur-md border border-white/10 text-teal-200 shadow-inner"
+                        >
+                            <CalendarDays size={12} className="text-teal-300" />
+                            Guruhlar Boshqaruv Tizimi
+                        </motion.div>
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 italic">
+                            Akademik <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-emerald-100 not-italic">Guruhlar</span>
+                        </h1>
+                        <p className="text-teal-100/80 font-medium text-lg max-w-xl leading-relaxed">
+                            O'quv guruhlarini shakllantirish, dars jadvallarini belgilash va tarkibni nazorat qilish.
+                        </p>
+                    </div>
+
+                    <motion.button
+                        whileHover={{ scale: 1.05, y: -5 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleAdd}
+                        className="btn-primary from-white to-slate-100 !text-slate-900 shadow-xl shadow-white/10 !py-4 h-fit"
+                    >
+                        <Plus size={18} className="text-teal-600" />
+                        Yangi Guruh Qo'shish
+                    </motion.button>
+                </div>
+            </div>
+
+            {/* Matrix Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatsCard title="Jami Guruhlar" value={stats.total} icon={Users} color="teal" trend="Sinxron" />
+                <StatsCard title="Jami O'quvchilar" value={stats.students} icon={GraduationCap} color="blue" trend={`${stats.total > 0 ? (stats.students / stats.total).toFixed(1) : 0} avg`} />
+                <StatsCard title="O'qituvchilar" value={stats.teachers} icon={UserCheck} color="purple" trend="Faol" />
+                <StatsCard title="Faol Kurslar" value={stats.active} icon={Check} color="emerald" trend="100%" />
+            </div>
+
+            {/* Controls Bar */}
             <div className="glass-card p-2 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-24 z-30">
                 <div className="relative flex-1 max-w-md ml-2">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Guruhlarni izlash..."
+                        placeholder="Guruh nomi, fan yoki o'qituvchi bo'yicha izlash..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-teal-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
                     />
                 </div>
                 <div className="flex gap-2 p-1">
-                    <button className="flex items-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all font-bold text-xs uppercase tracking-wider">
-                        <Filter size={16} />
-                        <span className="hidden sm:inline">Filtr</span>
-                    </button>
                     <button
-                        onClick={handleAdd}
-                        className="btn-primary from-teal-500 to-emerald-500 shadow-teal-500/30"
+                        onClick={fetchGroups}
+                        disabled={loading}
+                        className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-teal-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
                     >
-                        <Plus size={18} />
-                        <span className="hidden sm:inline">Guruh Qo'shish</span>
+                        <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+                    </button>
+                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95">
+                        <Download size={16} />
+                        EXPORT CSV
                     </button>
                 </div>
             </div>
 
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                    <div className="w-10 h-10 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin"></div>
-                    <p className="text-slate-400 font-medium animate-pulse">Yuklanmoqda...</p>
+                <div className="py-20 flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Guruhlar yuklanmoqda...</p>
                 </div>
+            ) : filteredGroups.length === 0 ? (
+                <EmptyState
+                    icon={Users}
+                    title="Guruhlar topilmadi"
+                    description={searchQuery ? `"${searchQuery}" bo'yicha hech qanday guruh topilmadi.` : "Hozircha guruhlar ro'yxati bo'sh."}
+                />
             ) : (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

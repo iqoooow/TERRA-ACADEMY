@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, User, Phone, Calendar, Mail, Filter, MessageSquare, ListFilter, ShieldCheck, UserCheck, Users, Link as LinkIcon } from 'lucide-react';
+import { Check, X, User, Phone, Mail, Filter, ShieldCheck, UserCheck, Users, Link as RLink, CheckCircle, Clock, FileText, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import Table, { TableRow, TableCell } from '../../components/ui/Table';
+import StatsCard from '../../components/ui/StatsCard';
+import EmptyState from '../../components/ui/EmptyState';
 
 const RegistrationRequests = () => {
     const [requests, setRequests] = useState([]);
@@ -16,31 +19,35 @@ const RegistrationRequests = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Fetch profile requests
-            const { data: profiles, error: profileError } = await supabase
-                .from('profiles')
+            const { data: apps, error: appError } = await supabase
+                .from('applications')
                 .select('*')
-                .eq('status', 'pending');
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
 
-            if (profileError) throw profileError;
-            setRequests(profiles || []);
+            if (appError) throw appError;
+            setRequests(apps || []);
 
-            // Fetch parent-student link requests
-            const { data: links, error: linkError } = await supabase
-                .from('parent_student')
-                .select(`
-                    *,
-                    parent:parent_id(first_name, last_name, email),
-                    student:student_id(first_name, last_name, student_code)
-                `)
-                .eq('status', 'pending');
+            try {
+                const { data: links, error: linkError } = await supabase
+                    .from('parent_student')
+                    .select(`
+                        *,
+                        parent:parent_id(id, first_name, last_name, phone),
+                        student:student_id(id, first_name, last_name, student_code)
+                    `)
+                    .eq('status', 'pending');
 
-            if (linkError) throw linkError;
-            setParentLinks(links || []);
+                if (!linkError) {
+                    setParentLinks(links || []);
+                }
+            } catch {
+                setParentLinks([]);
+            }
 
         } catch (err) {
             console.error('RegistrationRequests fetchData error:', err);
-            toast.error('Ma’lumotlarni yuklashda xatolik yuz berdi');
+            toast.error("Ma'lumotlarni yuklashda xatolik");
         } finally {
             setLoading(false);
         }
@@ -48,26 +55,52 @@ const RegistrationRequests = () => {
 
     useEffect(() => {
         fetchData();
+        const channel = supabase.channel('requests-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'parent_student' }, () => fetchData())
+            .subscribe();
+        return () => supabase.removeChannel(channel);
     }, []);
 
-    const handleProfileAction = async (userId, action) => {
+    const handleProfileAction = async (application, action) => {
         setActionLoading(true);
         try {
-            const status = action === 'approve' ? 'approved' : 'rejected';
-            const { error } = await supabase
-                .from('profiles')
-                .update({ status: status })
-                .eq('id', userId);
+            if (action === 'approve') {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: application.id,
+                        role: application.role,
+                        full_name: application.full_name,
+                        first_name: application.first_name,
+                        last_name: application.last_name,
+                        phone: application.phone,
+                        birth_date: application.birth_date,
+                        status: 'approved',
+                        student_code: application.student_code
+                    }, { onConflict: 'id' });
 
-            if (error) throw error;
+                if (profileError) throw profileError;
 
-            setRequests(requests.filter(req => req.id !== userId));
+                const { error: appError } = await supabase
+                    .from('applications')
+                    .update({ status: 'approved' })
+                    .eq('id', application.id);
+
+                if (appError) throw appError;
+                toast.success('Foydalanuvchi tasdiqlandi');
+            } else {
+                const { error: appError } = await supabase
+                    .from('applications')
+                    .update({ status: 'rejected' })
+                    .eq('id', application.id);
+                if (appError) throw appError;
+                toast.success('Foydalanuvchi rad etildi');
+            }
             setSelectedRequest(null);
-            setReason('');
-            toast.success(action === 'approve' ? 'Foydalanuvchi tasdiqlandi' : 'Foydalanuvchi rad etildi');
+            fetchData();
         } catch (err) {
-            console.error(err);
-            toast.error('Xatolik yuz berdi');
+            toast.error('Xatolik: ' + err.message);
         } finally {
             setActionLoading(false);
         }
@@ -81,15 +114,11 @@ const RegistrationRequests = () => {
                 .from('parent_student')
                 .update({ status: status })
                 .eq('id', linkId);
-
             if (error) throw error;
-
-            setParentLinks(parentLinks.filter(link => link.id !== linkId));
-            setSelectedRequest(null);
-            setReason('');
             toast.success(action === 'approve' ? 'Bog\'lanish tasdiqlandi' : 'Bog\'lanish rad etildi');
+            setSelectedRequest(null);
+            fetchData();
         } catch (err) {
-            console.error(err);
             toast.error('Xatolik yuz berdi');
         } finally {
             setActionLoading(false);
@@ -100,7 +129,7 @@ const RegistrationRequests = () => {
         if (selectedRequest.type === 'link') {
             handleLinkAction(id, action);
         } else {
-            handleProfileAction(id, action);
+            handleProfileAction(selectedRequest, action);
         }
     };
 
@@ -110,205 +139,183 @@ const RegistrationRequests = () => {
             ? parentLinks
             : requests.filter(req => req.role === filter);
 
-    const container = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
+    const getRoleBadge = (role) => {
+        switch (role) {
+            case 'teacher': return 'bg-purple-100 text-purple-700 border-purple-200';
+            case 'student': return 'bg-blue-100 text-blue-700 border-blue-200';
+            case 'parent': return 'bg-orange-100 text-orange-700 border-orange-200';
+            default: return 'bg-slate-100 text-slate-700 border-slate-200';
         }
     };
 
-    const item = {
-        hidden: { y: 20, opacity: 0 },
-        show: { y: 0, opacity: 1 }
-    };
-
     return (
-        <div className="space-y-8 animate-fade-in pb-10 max-w-[1600px] mx-auto">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-[500px] h-full bg-gradient-to-l from-indigo-50 to-transparent"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="p-2 bg-indigo-600 text-white rounded-xl">
-                            <ShieldCheck size={24} />
-                        </span>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                            Registratsiya va Bogʻlanishlar
-                        </h1>
-                    </div>
-                    <p className="text-slate-500 font-medium ml-1">Yangi arizalarni tasdiqlash yoki rad etish markazi</p>
-                </div>
+        <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
+            {/* Intelligence Header */}
+            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
+                <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] blend-overlay"></div>
 
-                <div className="relative z-10 flex gap-2 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
+                <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                    <div>
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 backdrop-blur-md border border-white/10 text-indigo-200 shadow-inner"
+                        >
+                            <ShieldCheck size={12} className="text-emerald-400" />
+                            Xavfsizlik va Verifikatsiya
+                        </motion.div>
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 italic">
+                            Arizalar <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-violet-100 not-italic">Markazi</span>
+                        </h1>
+                        <p className="text-indigo-100/80 font-medium text-lg max-w-xl leading-relaxed">
+                            Yangi foydalanuvchilarni tasdiqlash va ota-ona-bola bog'lanishlarini boshqarish.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Matrix Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatsCard title="Jami Arizalar" value={requests.length} icon={FileText} color="indigo" trend="Kutmoqda" />
+                <StatsCard title="O'qituvchilar" value={requests.filter(r => r.role === 'teacher').length} icon={UserCheck} color="purple" trend="Verify" />
+                <StatsCard title="O'quvchilar" value={requests.filter(r => r.role === 'student').length} icon={Users} color="blue" trend="Review" />
+                <StatsCard title="Bog'lanishlar" value={parentLinks.length} icon={RLink} color="amber" trend="Pending" />
+            </div>
+
+            {/* Controls Bar & Filter */}
+            <div className="glass-card p-2 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-24 z-30">
+                <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto no-scrollbar">
                     {[
-                        { id: 'all', label: 'Barchasi', icon: ListFilter },
-                        { id: 'teacher', label: 'Oʻqituvchilar', icon: UserCheck },
-                        { id: 'student', label: 'Oʻquvchilar', icon: User },
-                        { id: 'parent', label: 'Ota-onalar', icon: Users },
-                        { id: 'links', label: 'Bogʻlanishlar', icon: LinkIcon, count: parentLinks.length }
+                        { id: 'all', label: 'Barchasi', icon: CheckCircle, count: requests.length },
+                        { id: 'teacher', label: 'Oʻqituvchilar', icon: UserCheck, count: requests.filter(r => r.role === 'teacher').length },
+                        { id: 'student', label: 'Oʻquvchilar', icon: User, count: requests.filter(r => r.role === 'student').length },
+                        { id: 'parent', label: 'Ota-onalar', icon: Users, count: requests.filter(r => r.role === 'parent').length },
+                        { id: 'links', label: 'Bogʻlanishlar', icon: RLink, count: parentLinks.length }
                     ].map((f) => (
                         <button
                             key={f.id}
                             onClick={() => setFilter(f.id)}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${filter === f.id
-                                    ? 'bg-white text-indigo-600 shadow-md shadow-slate-200'
-                                    : 'text-slate-500 hover:bg-white/50 hover:text-slate-700'
+                            className={`flex items-center gap-3 px-6 py-2.5 rounded-xl transition-all duration-500 whitespace-nowrap ${filter === f.id
+                                ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-500/10 scale-105'
+                                : 'text-slate-500 hover:text-indigo-600 hover:bg-white/50'
                                 }`}
                         >
-                            <f.icon size={16} />
-                            {f.label}
+                            <f.icon size={16} className={filter === f.id ? 'text-indigo-600' : 'text-slate-400'} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{f.label}</span>
                             {f.count > 0 && (
-                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${filter === f.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
-                                    }`}>{f.count}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${filter === f.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500 text-opacity-70'}`}>
+                                    {f.count}
+                                </span>
                             )}
                         </button>
                     ))}
                 </div>
+
+                <div className="flex gap-2 p-1">
+                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+                        <Download size={16} />
+                        EXPORT
+                    </button>
+                </div>
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="glass-card h-64 animate-pulse bg-slate-100/50"></div>
-                    ))}
+                <div className="flex flex-col items-center justify-center py-40 space-y-4">
+                    <div className="w-12 h-12 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] animate-pulse">Arizalar yuklanmoqda...</p>
                 </div>
-            ) : filteredRequests.length === 0 && filter !== 'links' ? (
-                <div className="glass-card p-16 text-center flex flex-col items-center justify-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                        <Check size={40} className="text-slate-300" />
-                    </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-2">Arizalar mavjud emas</h3>
-                    <p className="text-slate-500 font-medium max-w-sm">Hozirda ko'rib chiqish uchun yangi arizalar yo'q.</p>
-                </div>
+            ) : filteredRequests.length === 0 ? (
+                <EmptyState
+                    icon={CheckCircle}
+                    title="Yangi arizalar yo'q"
+                    description="Hozirda barcha so'rovlar ko'rib chiqilgan. Hammasi a'lo darajada!"
+                />
             ) : (
                 <motion.div
-                    variants={container}
-                    initial="hidden"
-                    animate="show"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="pt-4"
                 >
-                    {/* Render Link Requests if filter is links or all (but logic above handles specific filter) */}
-                    {filter === 'links' ? (
-                        filteredRequests.map((link) => (
-                            <motion.div key={link.id} variants={item} className="glass-card p-6 border border-slate-100 relative group overflow-hidden">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-[4rem] -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                                <div className="absolute top-4 right-4 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
-                                    Link Request
-                                </div>
-
-                                <div className="mb-6 relative z-10">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
-                                            {link.parent?.first_name?.[0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ota-ona</p>
-                                            <h3 className="font-bold text-slate-900">{link.parent?.first_name} {link.parent?.last_name}</h3>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-center my-2">
-                                        <div className="p-1.5 bg-slate-50 rounded-full text-slate-300">
-                                            <LinkIcon size={16} />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                                            {link.student?.first_name?.[0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Farzand</p>
-                                            <h3 className="font-bold text-slate-900">{link.student?.first_name} {link.student?.last_name}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 relative z-10">
-                                    <button
-                                        onClick={() => setSelectedRequest({ ...link, type: 'link', action: 'approve' })}
-                                        className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-                                    >
-                                        <Check size={16} /> Tasdiqlash
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedRequest({ ...link, type: 'link', action: 'reject' })}
-                                        className="flex-1 py-3 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-xl transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-                                    >
-                                        <X size={16} /> Rad etish
-                                    </button>
-                                </div>
-                            </motion.div>
-                        ))
-                    ) : (
-                        filteredRequests.map((req) => (
-                            <motion.div key={req.id} variants={item} className="glass-card p-6 border border-slate-100 group relative overflow-hidden hover:scale-[1.02] transition-transform duration-300">
-                                <div className={`absolute top-0 left-0 w-1 h-full ${req.role === 'teacher' ? 'bg-blue-500' :
-                                        req.role === 'student' ? 'bg-emerald-500' : 'bg-purple-500'
-                                    }`}></div>
-
-                                <div className="flex justify-between items-start mb-6 pl-4">
+                    <Table headers={filter === 'links' ? ['Ota-ona', 'Farzand', 'Status', 'Amallar'] : ['Foydalanuvchi', 'Rol', 'Aloqa', 'Amallar']}>
+                        {filteredRequests.map((req) => (
+                            <TableRow key={req.id} className="group cursor-default">
+                                <TableCell>
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ${req.role === 'teacher' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' :
-                                                req.role === 'student' ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-purple-500 to-violet-600'
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg ${filter === 'links' ? 'bg-gradient-to-br from-orange-400 to-amber-600' :
+                                            req.role === 'teacher' ? 'bg-gradient-to-br from-purple-500 to-fuchsia-600' :
+                                                req.role === 'student' ? 'bg-gradient-to-br from-blue-500 to-indigo-600' :
+                                                    'bg-gradient-to-br from-orange-500 to-amber-600'
                                             }`}>
-                                            {req.first_name?.[0]}
+                                            {(filter === 'links' ? req.parent?.first_name : req.first_name)?.[0]?.toUpperCase()}
                                         </div>
                                         <div>
-                                            <h3 className="font-black text-slate-900 text-lg leading-tight">{req.first_name} {req.last_name}</h3>
-                                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${req.role === 'teacher' ? 'bg-blue-50 text-blue-600' :
-                                                    req.role === 'student' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'
-                                                }`}>
-                                                {req.role}
-                                            </span>
+                                            <div className="font-bold text-slate-900">
+                                                {filter === 'links' ? `${req.parent?.first_name} ${req.parent?.last_name}` : `${req.first_name} ${req.last_name}`}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">
+                                                {filter === 'links' ? 'Ota-ona (Link Request)' : req.email}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </TableCell>
 
-                                <div className="space-y-3 mb-8 pl-4">
-                                    <div className="flex items-center gap-3 text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors">
-                                            <Mail size={16} />
+                                <TableCell>
+                                    {filter === 'links' ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xs">
+                                                {req.student?.first_name?.[0]}
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-700">{req.student?.first_name} {req.student?.last_name}</div>
+                                                <div className="text-[9px] text-blue-500 font-black uppercase tracking-wider">#{req.student?.student_code}</div>
+                                            </div>
                                         </div>
-                                        <span>{req.email || 'Email yo\'q'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors">
-                                            <Phone size={16} />
-                                        </div>
-                                        <span>{req.phone || 'Telefon yo\'q'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors">
-                                            <Calendar size={16} />
-                                        </div>
-                                        <span>{req.birth_date || 'Nomaʼlum'}</span>
-                                    </div>
-                                </div>
+                                    ) : (
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getRoleBadge(req.role)}`}>
+                                            {req.role}
+                                        </span>
+                                    )}
+                                </TableCell>
 
-                                <div className="flex gap-3 pl-4">
-                                    <button
-                                        onClick={() => setSelectedRequest({ ...req, type: 'profile', action: 'approve' })}
-                                        className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg shadow-slate-900/20 transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-                                    >
-                                        <Check size={16} /> Tasdiqlash
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedRequest({ ...req, type: 'profile', action: 'reject' })}
-                                        className="w-12 h-12 flex items-center justify-center bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                        title="Rad etish"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        ))
-                    )}
+                                <TableCell>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                            <Phone size={12} className="text-slate-400" />
+                                            {filter === 'links' ? req.parent?.phone : req.phone}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+                                            <Clock size={10} />
+                                            {new Date(req.created_at).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                </TableCell>
+
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setSelectedRequest({ ...req, type: filter === 'links' ? 'link' : 'profile', action: 'approve' })}
+                                            className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:scale-105 transition-all shadow-lg shadow-emerald-500/20"
+                                        >
+                                            Tasdiqlash
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedRequest({ ...req, type: filter === 'links' ? 'link' : 'profile', action: 'reject' })}
+                                            className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all hover:rotate-90"
+                                            title="Rad etish"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </Table>
                 </motion.div>
             )}
 
-            {/* Premium Modal */}
+            {/* Premium Confirmation Modal */}
             <AnimatePresence>
                 {selectedRequest && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -323,56 +330,42 @@ const RegistrationRequests = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative z-10"
+                            className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl relative z-10 border border-white/20"
                         >
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl ${selectedRequest.action === 'approve' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                                {selectedRequest.action === 'approve' ? <Check size={40} strokeWidth={3} /> : <X size={40} strokeWidth={3} />}
+                            <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl ${selectedRequest.action === 'approve' ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-rose-500 text-white shadow-rose-200'
+                                }`}>
+                                {selectedRequest.action === 'approve' ? <CheckCircle size={48} /> : <X size={48} />}
                             </div>
 
-                            <h2 className="text-2xl font-black text-slate-900 text-center mb-2 tracking-tight">
-                                {selectedRequest.action === 'approve' ? 'Tasdiqlashni yakunlash' : 'Arizani rad etish'}
+                            <h2 className="text-3xl font-black text-slate-900 text-center mb-2 tracking-tight">
+                                {selectedRequest.action === 'approve' ? 'Tasdiqlaysizmi?' : 'Rad etasizmi?'}
                             </h2>
                             <p className="text-slate-500 text-center mb-8 font-medium leading-relaxed">
                                 {selectedRequest.type === 'link' ? (
                                     <>
-                                        <span className="text-slate-900 font-bold">{selectedRequest.parent?.first_name}</span> va <span className="text-slate-900 font-bold">{selectedRequest.student?.first_name}</span> o'rtasidagi bog'lanishni tasdiqlaysizmi?
+                                        <span className="text-slate-900 font-bold">{selectedRequest.parent?.first_name}</span> va <span className="text-slate-900 font-bold">{selectedRequest.student?.first_name}</span> o'rtasidagi bog'lanishni qayta ishlaymiz.
                                     </>
                                 ) : (
                                     <>
-                                        Haqiqatan ham <span className="text-slate-900 font-bold">{selectedRequest.first_name}</span> ismli foydalanuvchini platformaga qo'shmoqchimisiz?
+                                        <span className="text-slate-900 font-bold">{selectedRequest.first_name}</span> ismli foydalanuvchiga platforma uchun ruxsat beramiz.
                                     </>
                                 )}
                             </p>
 
-                            <div className="mb-8">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block ml-1">
-                                    {selectedRequest.action === 'approve' ? 'Qo\'shimcha izoh (ixtiyoriy)' : 'Rad etish sababi'}
-                                </label>
-                                <textarea
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all resize-none text-slate-700 font-medium"
-                                    placeholder={selectedRequest.action === 'approve' ? 'Xush kelibsiz...' : 'Hujjatlardagi xatolik sababli...'}
-                                    rows={3}
-                                ></textarea>
-                            </div>
-
-                            <div className="flex gap-4">
+                            <div className="flex gap-4 pt-4">
                                 <button
-                                    onClick={() => { setSelectedRequest(null); setReason(''); }}
-                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-bold text-xs uppercase tracking-widest"
+                                    onClick={() => setSelectedRequest(null)}
+                                    className="flex-1 py-4 bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest"
                                 >
                                     Bekor qilish
                                 </button>
                                 <button
                                     onClick={() => handleAction(selectedRequest.id, selectedRequest.action)}
                                     disabled={actionLoading}
-                                    className={`flex-1 py-4 text-white rounded-xl shadow-lg transition-all font-bold text-xs uppercase tracking-widest ${selectedRequest.action === 'approve'
-                                        ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'
-                                        : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/30'
+                                    className={`flex-1 py-4 text-white rounded-2xl shadow-xl transition-all font-black text-[10px] uppercase tracking-widest ${selectedRequest.action === 'approve' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30' : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/30'
                                         } ${actionLoading ? 'opacity-70 cursor-wait' : ''}`}
                                 >
-                                    {actionLoading ? 'Bajarilmoqda...' : (selectedRequest.action === 'approve' ? 'Tasdiqlash' : 'Rad etish')}
+                                    {actionLoading ? 'Kutilmoqda...' : 'Tasdiqlash'}
                                 </button>
                             </div>
                         </motion.div>
@@ -384,3 +377,4 @@ const RegistrationRequests = () => {
 };
 
 export default RegistrationRequests;
+

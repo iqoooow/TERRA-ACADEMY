@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu, User, Bell, Search, ChevronDown, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import GlobalSearch from '../components/common/GlobalSearch';
 
 const MainLayout = () => {
     const { user } = useAuth();
@@ -86,15 +87,7 @@ const MainLayout = () => {
 
                     <div className="flex items-center gap-3 lg:gap-6">
                         {/* Search Bar - Desktop */}
-                        <div className="hidden md:flex items-center gap-3 bg-slate-100/50 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-blue-500/30 focus-within:bg-white focus-within:shadow-lg focus-within:shadow-blue-500/5 transition-all w-64 lg:w-96 group">
-                            <Search size={18} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Qidirish (cmd+k)"
-                                className="bg-transparent border-none outline-none text-sm w-full font-medium text-slate-700 placeholder:text-slate-400"
-                            />
-                            <div className="text-xs font-bold text-slate-400 border border-slate-200 rounded px-1.5 py-0.5 bg-white">Ctrl K</div>
-                        </div>
+                        <GlobalSearch />
 
                         <div className="flex items-center gap-2 lg:gap-3">
                             <button className="p-2.5 hover:bg-white hover:shadow-lg hover:shadow-slate-200/50 rounded-xl transition-all text-slate-500 relative group active:scale-95">
@@ -118,7 +111,7 @@ const MainLayout = () => {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-4 lg:p-8 relative">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-8 relative">
                     {/* Background Pattern */}
                     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4f46e5 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 

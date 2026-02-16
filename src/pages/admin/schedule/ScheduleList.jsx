@@ -124,50 +124,78 @@ const ScheduleList = () => {
     }
 
     return (
-        <div className="space-y-8 animate-fade-in pb-10">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        <Calendar className="text-blue-500" size={32} />
-                        Dars Jadvali
-                    </h1>
-                    <p className="text-slate-500 font-medium mt-1">Guruhlar va ularning haftalik taqvimi</p>
+        <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
+            {/* Intelligence Header */}
+            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
+                <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] blend-overlay"></div>
+
+                <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                    <div>
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 backdrop-blur-md border border-white/10 text-blue-200 shadow-inner"
+                        >
+                            <Calendar size={12} className="text-blue-300" />
+                            O'quv Rejasi va Taqvim
+                        </motion.div>
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3 italic">
+                            Dars <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-100 not-italic">Jadvallari</span>
+                        </h1>
+                        <p className="text-blue-100/80 font-medium text-lg max-w-xl leading-relaxed">
+                            Barcha guruhlarning haftalik dars jadvallari, vaqtlari va xonalar taqsimoti.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-4">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={expandAll}
+                            className="px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl backdrop-blur-xl border border-white/10 font-bold text-xs uppercase tracking-widest transition-all"
+                        >
+                            Hammasini ochish
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={collapseAll}
+                            className="px-6 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl border border-white/5 font-bold text-xs uppercase tracking-widest transition-all"
+                        >
+                            Yopish
+                        </motion.button>
+                    </div>
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatsCard title="Jami Guruhlar" value={totalGroups} icon={Layers} color="blue" />
-                <StatsCard title="Haftalik Darslar" value={totalLessons} icon={Clock} color="green" />
-                <StatsCard title="O'quvchilar" value={totalStudents} icon={Users} color="purple" />
-                <StatsCard title="O'qituvchilar" value={activeTeachers} icon={BookOpen} color="orange" />
+            {/* Matrix Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatsCard title="Jami Guruhlar" value={totalGroups} icon={Layers} color="blue" trend="Active" />
+                <StatsCard title="Haftalik Darslar" value={totalLessons} icon={Clock} color="indigo" trend="Full sync" />
+                <StatsCard title="O'quvchilar" value={totalStudents} icon={Users} color="purple" trend="Enrolled" />
+                <StatsCard title="O'qituvchilar" value={activeTeachers} icon={BookOpen} color="amber" trend="On duty" />
             </div>
 
-            {/* Controls */}
-            <div className="glass-card p-2 flex flex-col md:flex-row items-center gap-3 sticky top-24 z-30">
-                <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            {/* Controls Bar */}
+            <div className="glass-card p-2 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-24 z-30">
+                <div className="relative flex-1 max-w-2xl ml-2">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Guruh, fan yoki o'qituvchini izlash..."
+                        placeholder="Guruh, fan yoki o'qituvchi bo'yicha izlash..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
                     />
                 </div>
-                <div className="flex gap-2 w-full md:w-auto">
-                    <button
-                        onClick={expandAll}
-                        className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all font-bold text-xs uppercase tracking-wider"
-                    >
-                        Barchasini Ochish
+                <div className="flex gap-2 p-1">
+                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+                        <Calendar size={16} />
+                        TAQVIM KO'RINISHI
                     </button>
-                    <button
-                        onClick={collapseAll}
-                        className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all font-bold text-xs uppercase tracking-wider"
-                    >
-                        Yopish
+                    <button className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                        <Filter size={20} />
                     </button>
                 </div>
             </div>
@@ -227,8 +255,8 @@ const ScheduleList = () => {
                                             <div
                                                 key={day.key}
                                                 className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black uppercase transition-all ${group.schedule_days?.includes(day.key)
-                                                        ? `${dayColors[day.key]} text-white transform scale-110`
-                                                        : 'bg-slate-50 text-slate-300'
+                                                    ? `${dayColors[day.key]} text-white transform scale-110`
+                                                    : 'bg-slate-50 text-slate-300'
                                                     }`}
                                             >
                                                 {day.short}
@@ -263,8 +291,8 @@ const ScheduleList = () => {
 
                                                             {/* Day Content */}
                                                             <div className={`flex-1 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 min-h-[140px] transition-all ${hasClass
-                                                                    ? 'bg-white shadow-sm border border-slate-100 ring-2 ring-transparent hover:ring-blue-100'
-                                                                    : 'bg-transparent border border-transparent opacity-50'
+                                                                ? 'bg-white shadow-sm border border-slate-100 ring-2 ring-transparent hover:ring-blue-100'
+                                                                : 'bg-transparent border border-transparent opacity-50'
                                                                 }`}>
                                                                 {hasClass ? (
                                                                     <>

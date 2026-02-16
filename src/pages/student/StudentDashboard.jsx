@@ -13,6 +13,23 @@ import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 
+const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-slate-900 shadow-2xl rounded-2xl p-4 border border-white/10 backdrop-blur-xl">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{payload[0].name}</p>
+                <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].fill }}></div>
+                    <p className="text-white font-black text-lg tracking-tight">
+                        {payload[0].value}% O'zlashtirish
+                    </p>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
+
 const parseScore = (scoreStr) => {
     if (!scoreStr) return 0;
     const s = scoreStr.toString().toUpperCase().trim();
@@ -324,10 +341,7 @@ const StudentDashboard = () => {
                                             verticalAlign="middle"
                                             wrapperStyle={{ top: '50%', right: 0, transform: 'translate(0, -50%)', fontWeight: 700, fontSize: '12px', color: '#64748B' }}
                                         />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: 'bold' }}
-                                            cursor={false}
-                                        />
+                                        <Tooltip content={<CustomTooltip />} cursor={false} />
                                     </RadialBarChart>
                                 </ResponsiveContainer>
 

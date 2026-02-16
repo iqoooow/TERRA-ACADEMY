@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
     LayoutDashboard,
@@ -18,6 +18,7 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     PieChart,
     Sparkles,
     Shield
@@ -28,6 +29,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobile }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [expandedItem, setExpandedItem] = useState(null);
 
     const handleLogout = () => {
         logout();
@@ -37,7 +40,13 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
     const toggleCollapse = () => {
         if (!isMobile) {
             setIsCollapsed(!isCollapsed);
+            setExpandedItem(null); // Close dropdowns on collapse
         }
+    };
+
+    const toggleDropdown = (name) => {
+        if (isCollapsed) return; // Don't expand if collapsed
+        setExpandedItem(expandedItem === name ? null : name);
     };
 
     // Role-based links definition
@@ -45,9 +54,16 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
         const adminLinks = [
             { name: 'Asosiy sahifa', path: '/admin/dashboard', icon: LayoutDashboard },
             { name: 'Arizalar', path: '/admin/registration-requests', icon: Bell },
-            { name: "O'quvchilar", path: '/admin/students', icon: GraduationCap },
-            { name: "O'qituvchilar", path: '/admin/teachers', icon: UserCheck },
-            { name: "Ota-onalar", path: '/admin/parents', icon: UsersRound },
+            {
+                name: 'Foydalanuvchilar',
+                icon: UsersRound,
+                type: 'dropdown',
+                children: [
+                    { name: "O'quvchilar", path: '/admin/students', icon: GraduationCap },
+                    { name: "O'qituvchilar", path: '/admin/teachers', icon: UserCheck },
+                    { name: "Ota-onalar", path: '/admin/parents', icon: UsersRound },
+                ]
+            },
             { name: 'Guruhlar', path: '/admin/groups', icon: Users },
             { name: 'Fanlar', path: '/admin/subjects', icon: BookOpen },
             { name: 'Moliya', path: '/admin/finance', icon: CreditCard },
@@ -115,6 +131,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
                         <motion.div
                             whileHover={{ scale: 1.05, rotate: 5 }}
                             whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate('/')}
                             className="p-3 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-600/20 shrink-0 cursor-pointer border border-white/10"
                         >
                             <GraduationCap size={24} className="text-white fill-white/10" />
@@ -144,69 +161,143 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
 
                     {/* Navigation Links */}
                     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 scrollbar-hide relative z-10">
-                        {links.map((link) => (
-                            <NavLink
-                                key={link.path}
-                                to={link.path}
-                                onClick={() => isMobile && setIsOpen(false)}
-                                title={isCollapsed ? link.name : ''}
-                                className={({ isActive }) => cn(
-                                    "flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
-                                    isActive
-                                        ? "text-white"
-                                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
-                                    isCollapsed ? "justify-center px-0" : ""
-                                )}
-                            >
-                                {({ isActive }) => (
-                                    <>
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="active-bg"
-                                                className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 shadow-md shadow-blue-900/20"
-                                                initial={false}
-                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                            />
-                                        )}
+                        {links.map((link) => {
+                            if (link.type === 'dropdown') {
+                                const isExpanded = expandedItem === link.name;
+                                const isChildActive = link.children.some(child => location.pathname === child.path);
 
-                                        <div className="relative z-10 flex items-center justify-center">
+                                return (
+                                    <div key={link.name} className="space-y-1">
+                                        <button
+                                            onClick={() => toggleDropdown(link.name)}
+                                            className={cn(
+                                                "w-full flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
+                                                isChildActive ? "text-white" : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+                                                isCollapsed ? "justify-center px-0" : ""
+                                            )}
+                                        >
+                                            {isChildActive && !isExpanded && (
+                                                <div className="absolute inset-y-0 left-0 w-1 bg-blue-500 rounded-r-full" />
+                                            )}
+
                                             <link.icon
                                                 size={20}
-                                                strokeWidth={isActive ? 2.5 : 2}
                                                 className={cn(
-                                                    "transition-all duration-300",
-                                                    isActive ? "text-white scale-110" : "text-slate-500 group-hover:text-slate-300",
-                                                    isCollapsed && "mx-auto"
+                                                    "transition-all duration-300 shrink-0",
+                                                    isChildActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"
                                                 )}
                                             />
-                                        </div>
 
-                                        {!isCollapsed && (
-                                            <motion.span
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className={cn(
-                                                    "font-bold text-sm tracking-wide relative z-10 whitespace-nowrap",
-                                                    isActive ? "text-white" : ""
-                                                )}
-                                            >
-                                                {link.name}
-                                            </motion.span>
-                                        )}
+                                            {!isCollapsed && (
+                                                <>
+                                                    <span className="flex-1 text-left font-bold text-sm tracking-wide">
+                                                        {link.name}
+                                                    </span>
+                                                    <ChevronDown
+                                                        size={14}
+                                                        className={cn("transition-transform duration-300", isExpanded && "rotate-180")}
+                                                    />
+                                                </>
+                                            )}
+                                        </button>
 
-                                        {!isCollapsed && isActive && (
-                                            <motion.div
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                className="absolute right-3"
-                                            >
-                                                <Sparkles size={12} className="text-blue-300 opacity-50" />
-                                            </motion.div>
-                                        )}
-                                    </>
-                                )}
-                            </NavLink>
-                        ))}
+                                        <AnimatePresence>
+                                            {isExpanded && !isCollapsed && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="overflow-hidden pl-4 space-y-1"
+                                                >
+                                                    {link.children.map((child) => (
+                                                        <NavLink
+                                                            key={child.path}
+                                                            to={child.path}
+                                                            onClick={() => isMobile && setIsOpen(false)}
+                                                            className={({ isActive }) => cn(
+                                                                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300",
+                                                                isActive
+                                                                    ? "text-blue-400 bg-blue-500/10 font-black"
+                                                                    : "text-slate-500 hover:text-slate-300 hover:bg-white/5 font-bold"
+                                                            )}
+                                                        >
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40 shrink-0" />
+                                                            <span className="text-xs tracking-wide">
+                                                                {child.name}
+                                                            </span>
+                                                        </NavLink>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <NavLink
+                                    key={link.path}
+                                    to={link.path}
+                                    onClick={() => isMobile && setIsOpen(false)}
+                                    title={isCollapsed ? link.name : ''}
+                                    className={({ isActive }) => cn(
+                                        "flex items-center gap-3 px-3 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
+                                        isActive
+                                            ? "text-white"
+                                            : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+                                        isCollapsed ? "justify-center px-0" : ""
+                                    )}
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="active-bg"
+                                                    className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 shadow-md shadow-blue-900/20"
+                                                    initial={false}
+                                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                                />
+                                            )}
+
+                                            <div className="relative z-10 flex items-center justify-center">
+                                                <link.icon
+                                                    size={20}
+                                                    strokeWidth={isActive ? 2.5 : 2}
+                                                    className={cn(
+                                                        "transition-all duration-300",
+                                                        isActive ? "text-white scale-110" : "text-slate-500 group-hover:text-slate-300",
+                                                        isCollapsed && "mx-auto"
+                                                    )}
+                                                />
+                                            </div>
+
+                                            {!isCollapsed && (
+                                                <motion.span
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className={cn(
+                                                        "font-bold text-sm tracking-wide relative z-10 whitespace-nowrap",
+                                                        isActive ? "text-white" : ""
+                                                    )}
+                                                >
+                                                    {link.name}
+                                                </motion.span>
+                                            )}
+
+                                            {!isCollapsed && isActive && (
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    className="absolute right-3"
+                                                >
+                                                    <Sparkles size={12} className="text-blue-300 opacity-50" />
+                                                </motion.div>
+                                            )}
+                                        </>
+                                    )}
+                                </NavLink>
+                            );
+                        })}
                     </div>
 
                     {/* User Section */}
