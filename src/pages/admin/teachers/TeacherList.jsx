@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, GraduationCap, Phone, Mail, UserPlus, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 const TeacherList = () => {
     const [teachers, setTeachers] = useState([]);
@@ -11,9 +13,6 @@ const TeacherList = () => {
         first_name: '',
         last_name: '',
         phone: '',
-        subject: '', // Note: Subject isn't in profiles, maybe we need to join? Or just store for now? 
-        // Actually, subjects are separate. We might need to link them. 
-        // For MVP, letting them edit profile fields is key.
     });
 
     useEffect(() => {
@@ -21,6 +20,7 @@ const TeacherList = () => {
     }, []);
 
     const fetchTeachers = async () => {
+        setLoading(true);
         try {
             const { supabase } = await import('../../../lib/supabase');
             const { data, error } = await supabase
@@ -33,22 +33,24 @@ const TeacherList = () => {
             setTeachers(data || []);
         } catch (err) {
             console.error('Error fetching teachers:', err);
+            toast.error("O'qituvchilarni yuklashda xatolik");
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this teacher?')) return;
+        if (!window.confirm('Haqiqatan ham bu o\'qituvchini o\'chirmoqchimisiz?')) return;
 
         try {
             const { supabase } = await import('../../../lib/supabase');
             const { error } = await supabase.from('profiles').delete().eq('id', id);
             if (error) throw error;
+            toast.success("O'qituvchi o'chirildi");
             fetchTeachers();
         } catch (err) {
             console.error('Error deleting teacher:', err);
-            alert('Error deleting teacher');
+            toast.error("O'chirishda xatolik");
         }
     };
 
@@ -68,8 +70,6 @@ const TeacherList = () => {
             first_name: '',
             last_name: '',
             phone: '',
-            email: '', // Add email for new users
-            password: '' // Add password for new users
         });
         setIsFormatModalOpen(true);
     };
@@ -80,7 +80,6 @@ const TeacherList = () => {
             const { supabase } = await import('../../../lib/supabase');
 
             if (editingTeacher) {
-                // Update existing
                 const { error } = await supabase
                     .from('profiles')
                     .update({
@@ -91,16 +90,9 @@ const TeacherList = () => {
                     .eq('id', editingTeacher.id);
 
                 if (error) throw error;
+                toast.success("Muvaffaqiyatli yangilandi");
             } else {
-                // Create new Teacher (Link to Auth)
-                // Since we can't create Auth User easily without Service Role here, 
-                // we will attempt a trick: warn the user, or just create a profile if it allows (unlikely)
-                // OR - we actually use the signUp method, but that signs the admin out.
-                // BEST UX: Just say "To add a teacher, please ask them to register via the /register page."
-                // BUT user demanded "Add". 
-                // Let's try to insert into profiles directly. If FK fails, we show error.
-
-                alert("To add a new teacher, please ask them to register at the registration page. Or use the 'Invite' feature (coming soon). currently we only support editing existing profiles.");
+                toast("Yangi o'qituvchi qo'shish uchun ularni ro'yxatdan o'tish sahifasiga yo'naltiring.", { icon: 'ℹ️', duration: 5000 });
                 return;
             }
 
@@ -108,139 +100,207 @@ const TeacherList = () => {
             fetchTeachers();
         } catch (err) {
             console.error('Error saving teacher:', err);
-            alert('Error saving teacher: ' + err.message);
+            toast.error('Saqlashda xatolik: ' + err.message);
+        }
+    };
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'approved': return 'bg-green-100 text-green-700 border-green-200';
+            case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            case 'rejected': return 'bg-red-100 text-red-700 border-red-200';
+            default: return 'bg-slate-100 text-slate-700 border-slate-200';
         }
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6 animate-fade-in">
             {/* Header with Search and Add Button */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Izlash..."
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
-                        />
-                    </div>
-                    <button 
-                        onClick={handleAdd} 
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/30 text-sm font-medium"
+            <div className="glass-card p-2 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-24 z-30">
+                <div className="relative flex-1 max-w-md ml-2">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="O'qituvchilarni izlash..."
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
+                    />
+                </div>
+                <div className="flex gap-2 p-1">
+                    <button className="flex items-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all font-bold text-xs uppercase tracking-wider">
+                        <Filter size={16} />
+                        <span className="hidden sm:inline">Filtr</span>
+                    </button>
+                    <button
+                        onClick={handleAdd}
+                        className="btn-primary"
                     >
-                        <Plus size={18} />
-                        <span>Qo'shish</span>
+                        <UserPlus size={18} />
+                        <span className="hidden sm:inline">O'qituvchi Qo'shish</span>
                     </button>
                 </div>
             </div>
 
             {loading ? (
-                <div className="text-center py-10">Loading teachers...</div>
-            ) : (
-                <Table headers={['Teacher Name', 'Phone Number', 'Status', 'Actions']}>
-                    {teachers.map((t) => (
-                        <TableRow key={t.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
-                                        {(t.full_name || t.first_name || 'U').charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="font-medium text-gray-900">
-                                        {t.full_name || `${t.first_name || ''} ${t.last_name || ''}`}
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell>{t.phone || '-'}</TableCell>
-                            <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${t.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {t.status || 'unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => handleEdit(t)} 
-                                        className="w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
-                                        title="Tahrirlash"
-                                    >
-                                        <Pencil size={14} />
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDelete(t.id)} 
-                                        className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
-                                        title="O'chirish"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </Table>
-            )}
-
-            {/* Modal */}
-            {isFormatModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-                        <h2 className="text-xl font-bold mb-4">{editingTeacher ? 'Edit Teacher' : 'Add Teacher'}</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                <input
-                                    type="text"
-                                    value={formData.first_name}
-                                    onChange={e => setFormData({ ...formData, first_name: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded-lg"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                <input
-                                    type="text"
-                                    value={formData.last_name}
-                                    onChange={e => setFormData({ ...formData, last_name: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded-lg"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                <input
-                                    type="text"
-                                    value={formData.phone}
-                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded-lg"
-                                />
-                            </div>
-
-                            {!editingTeacher && (
-                                <div className="p-3 bg-blue-50 text-blue-700 text-sm rounded-lg">
-                                    Note: Adding a new teacher directly is currently restricted. Please ask them to register via the signup page.
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 justify-end mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFormatModalOpen(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                >
-                                    {editingTeacher ? 'Save Changes' : 'Add Teacher'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <div className="w-10 h-10 border-4 border-purple-600/20 border-t-purple-600 rounded-full animate-spin"></div>
+                    <p className="text-slate-400 font-medium animate-pulse">Yuklanmoqda...</p>
                 </div>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <Table headers={['O\'qituvchi Ismi', 'Telefon', 'Holati', 'Amallar']}>
+                        {teachers.map((t) => (
+                            <TableRow key={t.id} className="group cursor-pointer">
+                                <TableCell>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-fuchsia-100 flex items-center justify-center text-purple-700 font-black shadow-inner">
+                                            {(t.full_name || t.first_name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">
+                                                {t.full_name || `${t.first_name || ''} ${t.last_name || ''}`}
+                                            </div>
+                                            <div className="text-xs text-slate-400 font-medium tracking-wide">O'qituvchi</div>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="font-medium text-slate-600 tracking-wide font-mono text-xs">
+                                        {t.phone || '-'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getStatusBadge(t.status)}`}>
+                                        {t.status || 'unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-300">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleEdit(t); }}
+                                            className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all hover:scale-110 shadow-sm"
+                                            title="Tahrirlash"
+                                        >
+                                            <Pencil size={14} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }}
+                                            className="p-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all hover:scale-110 shadow-sm"
+                                            title="O'chirish"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </Table>
+                </motion.div>
             )}
+
+            {/* Premium Modal */}
+            <AnimatePresence>
+                {isFormatModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                            onClick={() => setIsFormatModalOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-3xl p-8 w-full max-w-lg relative z-10 shadow-2xl shadow-purple-900/20 border border-white/20"
+                        >
+                            <button
+                                onClick={() => setIsFormatModalOpen(false)}
+                                className="absolute top-6 right-6 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+
+                            <div className="mb-8">
+                                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-black uppercase tracking-widest mb-4 inline-block">
+                                    {editingTeacher ? 'Tahrirlash' : 'Yangi'}
+                                </span>
+                                <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                                    {editingTeacher ? "O'qituvchi ma'lumotlari" : "Yangi o'qituvchi"}
+                                </h2>
+                                <p className="text-slate-500 mt-2 font-medium">Barcha maydonlarni to'ldiring</p>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Ism</label>
+                                        <input
+                                            type="text"
+                                            value={formData.first_name}
+                                            onChange={e => setFormData({ ...formData, first_name: e.target.value })}
+                                            className="input-field"
+                                            placeholder="Ismi"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Familiya</label>
+                                        <input
+                                            type="text"
+                                            value={formData.last_name}
+                                            onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                                            className="input-field"
+                                            placeholder="Familiyasi"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Telefon raqam</label>
+                                    <input
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                        className="input-field"
+                                        placeholder="+998 90 123 45 67"
+                                    />
+                                </div>
+
+                                {!editingTeacher && (
+                                    <div className="p-4 bg-purple-50 border border-purple-100 text-purple-800 text-sm rounded-2xl flex gap-3 items-start">
+                                        <div className="mt-0.5">ℹ️</div>
+                                        <p className="font-medium leading-relaxed">
+                                            Yangi o'qituvchi qo'shish uchun ularni ro'yxatdan o'tish sahifasiga yo'naltiring yoki administrator tomonidan taklif havolasini yuboring.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="pt-4 flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsFormatModalOpen(false)}
+                                        className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        Bekor qilish
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 shadow-lg shadow-purple-500/30 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        {editingTeacher ? 'Saqlash' : "Qo'shish"}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import LoadingScreen from './components/common/LoadingScreen';
 
 // Layouts & Components
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -36,25 +37,31 @@ const TeacherAttendance = lazy(() => import('./pages/teacher/TeacherAttendance')
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentCourses = lazy(() => import('./pages/student/StudentCourses'));
 const StudentGrades = lazy(() => import('./pages/student/StudentGrades'));
+const StudentSchedule = lazy(() => import('./pages/student/StudentSchedule'));
 
 // Parent Pages
 const ParentDashboard = lazy(() => import('./pages/parent/ParentDashboard'));
 const ChildPerformance = lazy(() => import('./pages/parent/ChildPerformance'));
 const ParentPayments = lazy(() => import('./pages/parent/ParentPayments'));
 
-const LoadingFallback = () => (
-  <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-    <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-    <p className="mt-4 text-slate-500 font-bold uppercase tracking-widest text-xs">Yuklamoqda...</p>
-  </div>
-);
-
 function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          className: 'glass-card text-sm font-bold',
+          duration: 4000,
+          style: {
+            background: 'rgba(255, 255, 255, 0.8)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            color: '#0f172a',
+          }
+        }}
+      />
       <Router>
-        <Suspense fallback={<LoadingFallback />}>
+        <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -94,7 +101,7 @@ function App() {
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
                 <Route path="/student/courses" element={<StudentCourses />} />
                 <Route path="/student/grades" element={<StudentGrades />} />
-                <Route path="/student/schedule" element={<StudentGrades />} />
+                <Route path="/student/schedule" element={<StudentSchedule />} />
               </Route>
             </Route>
 

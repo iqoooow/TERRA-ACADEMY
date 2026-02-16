@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Download, DollarSign, TrendingUp, AlertCircle, Eye, X, Trash2 } from 'lucide-react';
+import { Search, Download, DollarSign, TrendingUp, AlertCircle, Eye, X, Trash2, Calendar, FileText, Filter, Plus } from 'lucide-react';
 import StatsCard from '../../../components/ui/StatsCard';
 import { supabase } from '../../../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 const FinanceList = () => {
     const [transactions, setTransactions] = useState([]);
-    const [rawData, setRawData] = useState([]); // Store raw data for export
+    const [rawData, setRawData] = useState([]);
     const [students, setStudents] = useState([]);
-    const [stats, setStats] = useState([
-        { title: 'Jami daromad', value: '0 so\'m', change: '0%', icon: DollarSign, color: 'green' },
-        { title: 'Kutilayotgan to\'lovlar', value: '0 so\'m', change: '0%', icon: AlertCircle, color: 'orange' },
-        { title: 'O\'rtacha tranzaksiya', value: '0 so\'m', change: '0%', icon: TrendingUp, color: 'blue' },
-    ]);
+    const [stats, setStats] = useState({
+        total: 0,
+        pending: 0,
+        avg: 0
+    });
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingTrx, setViewingTrx] = useState(null);
@@ -28,270 +30,135 @@ const FinanceList = () => {
     });
 
     useEffect(() => {
-        const fetchFinance = async () => {
-            try {
-                const { supabase } = await import('../../../lib/supabase');
-                const { data, error } = await supabase
-                    .from('payments')
-                    .select(`
-                        *,
-                        profiles (full_name, first_name, last_name)
-                    `)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                // Store raw data for export
-                setRawData(data || []);
-
-                // Process Data
-                const formattedTrx = data?.map(t => {
-                    // Format date properly
-                    let formattedDate = '';
-                    if (t.date) {
-                        try {
-                            const dateObj = new Date(t.date);
-                            if (!isNaN(dateObj.getTime())) {
-                                formattedDate = dateObj.toLocaleDateString('uz-UZ', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit'
-                                });
-                            } else {
-                                formattedDate = t.date.split('T')[0]; // Fallback to YYYY-MM-DD
-                            }
-                        } catch {
-                            formattedDate = t.date.split('T')[0];
-                        }
-                    }
-
-                    // Format type with proper labels
-                    const typeLabels = {
-                        'tuition': 'Ta\'lim',
-                        'books': 'Kitoblar',
-                        'materials': 'Materiallar',
-                        'other': 'Boshqa'
-                    };
-
-                    return {
-                        id: t.id,
-                        shortId: `TRX-${String(t.id).slice(-8)}`, // Last 8 characters
-                        student: t.profiles?.full_name || `${t.profiles?.first_name || ''} ${t.profiles?.last_name || ''}`.trim() || 'Unknown',
-                        date: formattedDate,
-                        rawDate: t.date,
-                        amount: Number(t.amount).toFixed(2),
-                        type: t.type || 'other',
-                        typeLabel: typeLabels[t.type] || t.type || 'Boshqa',
-                        status: t.status.charAt(0).toUpperCase() + t.status.slice(1),
-                        bg: t.status === 'paid' ? 'bg-green-100 text-green-700' : t.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                    };
-                }) || [];
-
-                setTransactions(formattedTrx);
-
-                // Calculate Stats
-                const totalRev = data?.filter(t => t.status === 'paid').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
-                const pendingRev = data?.filter(t => t.status === 'pending').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
-                const avgTrx = data?.length ? (totalRev / data.length) : 0;
-
-                setStats([
-                    { title: 'Jami daromad', value: `${Number(totalRev).toLocaleString('uz-UZ')} so'm`, change: '+0%', icon: DollarSign, color: 'green' },
-                    { title: 'Kutilayotgan to\'lovlar', value: `${Number(pendingRev).toLocaleString('uz-UZ')} so'm`, change: '0%', icon: AlertCircle, color: 'orange' },
-                    { title: 'O\'rtacha tranzaksiya', value: `${Number(avgTrx).toLocaleString('uz-UZ', { maximumFractionDigits: 0 })} so'm`, change: '0%', icon: TrendingUp, color: 'blue' },
-                ]);
-
-            } catch (err) {
-                console.error('Error fetching finance:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchFinance();
-    }, []);
-
-    useEffect(() => {
-        const fetchStudents = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('id, first_name, last_name, full_name, student_code')
-                    .eq('role', 'student')
-                    .eq('status', 'approved')
-                    .order('first_name', { ascending: true });
-
-                if (error) throw error;
-                setStudents(data || []);
-            } catch (err) {
-                console.error('Error fetching students:', err);
-            }
-        };
-
         fetchStudents();
     }, []);
 
-    const handleExport = () => {
-        if (rawData.length === 0) {
-            alert('Eksport qilish uchun ma\'lumot mavjud emas');
-            return;
+    const fetchFinance = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('payments')
+                .select(`
+                    *,
+                    profiles (full_name, first_name, last_name)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setRawData(data || []);
+
+            const typeLabels = {
+                'tuition': 'Ta\'lim',
+                'books': 'Kitoblar',
+                'materials': 'Materiallar',
+                'other': 'Boshqa'
+            };
+
+            const formattedTrx = (data || []).map(t => ({
+                id: t.id,
+                shortId: `TRX-${String(t.id).slice(-8)}`,
+                student: t.profiles?.full_name || `${t.profiles?.first_name || ''} ${t.profiles?.last_name || ''}`.trim() || 'Noma\'lum',
+                date: t.date ? new Date(t.date).toLocaleDateString('uz-UZ') : '-',
+                rawDate: t.date,
+                amount: Number(t.amount || 0),
+                type: t.type || 'other',
+                typeLabel: typeLabels[t.type] || t.type || 'Boshqa',
+                status: t.status,
+                bg: t.status === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : t.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200'
+            }));
+
+            setTransactions(formattedTrx);
+
+            const totalRev = (data || []).filter(t => t.status === 'paid').reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const pendingRev = (data || []).filter(t => t.status === 'pending').reduce((acc, curr) => acc + Number(curr.amount), 0);
+            const avgTrx = (data || []).length ? (totalRev / data.length) : 0;
+
+            setStats({
+                total: totalRev,
+                pending: pendingRev,
+                avg: avgTrx
+            });
+
+        } catch (err) {
+            console.error('Error fetching finance:', err);
+            toast.error("Ma'lumotlarni yuklashda xatolik");
+        } finally {
+            setLoading(false);
         }
+    };
 
-        const typeLabels = { tuition: "Ta'lim", books: 'Kitoblar', materials: 'Materiallar', other: 'Boshqa' };
-        const statusLabels = { paid: "To'langan", pending: 'Kutilmoqda', overdue: "Muddati o'tgan" };
+    const fetchStudents = async () => {
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('id, full_name, student_code')
+                .eq('role', 'student')
+                .eq('status', 'approved')
+                .order('full_name');
+            setStudents(data || []);
+        } catch (err) {
+            console.error('Error fetching students:', err);
+        }
+    };
 
-        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const handleExport = () => {
+        if (rawData.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
 
-        const formatDate = (d) => {
-            if (!d) return '-';
-            try {
-                const dateObj = new Date(d);
-                if (!isNaN(dateObj.getTime())) {
-                    return dateObj.toLocaleDateString('uz-UZ', { year: 'numeric', month: '2-digit', day: '2-digit' });
-                }
-            } catch (_) {}
-            return typeof d === 'string' ? d.split('T')[0] : '-';
-        };
-
-        const rows = rawData.map(item => {
-            const studentName = item.profiles?.full_name ||
-                `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim() || '—';
-            const type = typeLabels[item.type] || item.type || 'Boshqa';
-            const status = statusLabels[item.status] || item.status || '—';
-            const amount = `${Number(item.amount || 0).toLocaleString('uz-UZ')} so'm`;
-            return { id: `TRX-${item.id}`, student: studentName, date: formatDate(item.date), type, amount, status };
+        // Simple CSV Export for now, could be enhanced
+        const headers = ['ID,Student,Date,Type,Amount,Status'];
+        const rows = rawData.map(d => {
+            const student = d.profiles?.full_name || 'Unknown';
+            return `${d.id},"${student}",${d.date},${d.type},${d.amount},${d.status}`;
         });
 
-        const thead = '<tr><th>ID</th><th>O\'quvchi</th><th>Sana</th><th>Turi</th><th>Summa</th><th>Holat</th></tr>';
-        const tbody = rows.map(r =>
-            `<tr><td>${esc(r.id)}</td><td>${esc(r.student)}</td><td>${esc(r.date)}</td><td>${esc(r.type)}</td><td>${esc(r.amount)}</td><td>${esc(r.status)}</td></tr>`
-        ).join('');
-
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>To'lovlar</title></head><body>
-<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">
-<thead style="background:#f3f4f6;">${thead}</thead>
-<tbody>${tbody}</tbody>
-</table></body></html>`;
-
-        const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `tolovlar_${new Date().toISOString().split('T')[0]}.xls`;
-        link.style.visibility = 'hidden';
+        const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `finance_export_${new Date().toISOString().slice(0, 10)}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-    };
-
-    const refreshFinance = async () => {
-        const { data, error } = await supabase
-            .from('payments')
-            .select(`*, profiles (full_name, first_name, last_name)`)
-            .order('created_at', { ascending: false });
-        if (error) throw error;
-        setRawData(data || []);
-        const typeLabels = { 'tuition': "Ta'lim", 'books': 'Kitoblar', 'materials': 'Materiallar', 'other': 'Boshqa' };
-        const formattedTrx = (data || []).map(t => {
-            let formattedDate = '';
-            if (t.date) {
-                try {
-                    const d = new Date(t.date);
-                    formattedDate = !isNaN(d.getTime()) ? d.toLocaleDateString('uz-UZ', { year: 'numeric', month: '2-digit', day: '2-digit' }) : t.date.split('T')[0];
-                } catch { formattedDate = t.date.split('T')[0]; }
-            }
-            return {
-                id: t.id,
-                shortId: `TRX-${String(t.id).slice(-8)}`,
-                student: t.profiles?.full_name || `${t.profiles?.first_name || ''} ${t.profiles?.last_name || ''}`.trim() || 'Unknown',
-                date: formattedDate,
-                rawDate: t.date,
-                amount: Number(t.amount).toFixed(2),
-                type: t.type || 'other',
-                typeLabel: typeLabels[t.type] || t.type || 'Boshqa',
-                status: t.status.charAt(0).toUpperCase() + t.status.slice(1),
-                bg: t.status === 'paid' ? 'bg-green-100 text-green-700' : t.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-            };
-        });
-        setTransactions(formattedTrx);
-        const totalRev = (data || []).filter(t => t.status === 'paid').reduce((a, c) => a + Number(c.amount), 0) || 0;
-        const pendingRev = (data || []).filter(t => t.status === 'pending').reduce((a, c) => a + Number(c.amount), 0) || 0;
-        const avgTrx = (data || []).length ? totalRev / (data || []).length : 0;
-        setStats([
-            { title: 'Jami daromad', value: `${Number(totalRev).toLocaleString('uz-UZ')} so'm`, change: '+0%', icon: DollarSign, color: 'green' },
-            { title: "Kutilayotgan to'lovlar", value: `${Number(pendingRev).toLocaleString('uz-UZ')} so'm`, change: '0%', icon: AlertCircle, color: 'orange' },
-            { title: "O'rtacha tranzaksiya", value: `${Number(avgTrx).toLocaleString('uz-UZ', { maximumFractionDigits: 0 })} so'm`, change: '0%', icon: TrendingUp, color: 'blue' },
-        ]);
+        toast.success("Eksport qilindi");
     };
 
     const handleDeletePayment = async (e, id) => {
-        e?.preventDefault?.();
-        e?.stopPropagation?.();
-        if (!id) return;
-        if (!confirm('Ushbu to\'lovni o\'chirishni xohlaysizmi?')) return;
+        e.stopPropagation();
+        if (!window.confirm("Haqiqatan ham bu to'lovni o'chirmoqchimisiz?")) return;
+
         setDeletingId(id);
         try {
             const { error } = await supabase.from('payments').delete().eq('id', id);
             if (error) throw error;
-            await refreshFinance();
-            alert('To\'lov o\'chirildi.');
+            toast.success("To'lov o'chirildi");
+            fetchFinance();
         } catch (err) {
-            console.error('To\'lovni o\'chirishda xatolik:', err);
-            alert('O\'chirishda xatolik: ' + (err.message || ''));
+            toast.error("O'chirishda xatolik");
         } finally {
             setDeletingId(null);
         }
     };
 
-    const parseAmount = (v) => {
-        if (v == null || v === '') return NaN;
-        const s = String(v).trim().replace(/\s/g, '').replace(',', '.');
-        return parseFloat(s);
-    };
-
     const handleAddPayment = async (e) => {
-        e?.preventDefault?.();
-        if (submitting) return;
+        e.preventDefault();
         setSubmitting(true);
-
         try {
-            const studentId = (formData.student_id || '').trim();
-            const amountRaw = formData.amount;
-            const amount = parseAmount(amountRaw);
-            const date = (formData.date || '').trim();
+            if (!formData.student_id || !formData.amount) throw new Error("Majburiy maydonlarni to'ldiring");
 
-            if (!studentId) {
-                setSubmitting(false);
-                alert('O\'quvchini tanlang.');
-                return;
-            }
-            if (amountRaw === '' || amountRaw == null) {
-                setSubmitting(false);
-                alert('Summani kiriting.');
-                return;
-            }
-            if (Number.isNaN(amount) || amount < 0) {
-                setSubmitting(false);
-                alert('Summa noto\'g\'ri. Faqat musbat son kiriting (masalan: 500000 yoki 500000,50).');
-                return;
-            }
-            if (!date) {
-                setSubmitting(false);
-                alert('Sanani tanlang.');
-                return;
-            }
-
-            const { error } = await supabase
-                .from('payments')
-                .insert([{
-                    student_id: studentId,
-                    amount: amount,
-                    type: formData.type || 'tuition',
-                    status: formData.status || 'paid',
-                    date: date
-                }]);
+            const { error } = await supabase.from('payments').insert([{
+                student_id: formData.student_id,
+                amount: Number(formData.amount),
+                type: formData.type,
+                status: formData.status,
+                date: formData.date
+            }]);
 
             if (error) throw error;
 
+            toast.success("To'lov qo'shildi");
+            setIsModalOpen(false);
             setFormData({
                 student_id: '',
                 amount: '',
@@ -299,318 +166,289 @@ const FinanceList = () => {
                 status: 'paid',
                 date: new Date().toISOString().split('T')[0]
             });
-            setIsModalOpen(false);
-            await refreshFinance();
-            alert('To\'lov muvaffaqiyatli qo\'shildi.');
+            fetchFinance();
         } catch (err) {
-            console.error('Error adding payment:', err);
-            alert('To\'lov qo\'shishda xatolik: ' + (err?.message || 'Noma\'lum xatolik'));
+            toast.error(err.message || "Xatolik yuz berdi");
         } finally {
             setSubmitting(false);
         }
     };
 
-    const filteredTransactions = transactions.filter(trx => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-            (trx.shortId || trx.id || '').toLowerCase().includes(query) ||
-            trx.student.toLowerCase().includes(query) ||
-            (trx.typeLabel || trx.type || '').toLowerCase().includes(query) ||
-            trx.status.toLowerCase().includes(query) ||
-            trx.amount.includes(query)
-        );
-    });
+    const filteredTransactions = transactions.filter(trx =>
+        trx.student.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trx.shortId.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
-        <div className="space-y-4">
-            {/* Header with Search and Actions */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Izlash..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
-                        />
+        <div className="space-y-8 animate-fade-in pb-10">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Moliya</h1>
+                    <p className="text-slate-500 font-medium mt-1">Barcha kirim va chiqim operatsiyalari</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 glass-card p-2 items-center min-w-[300px]">
+                    <div className="flex-1 text-center px-4 py-1">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Jami Tushum</p>
+                        <p className="font-black text-slate-800 text-xl">{stats.total.toLocaleString()} <span className="text-xs text-slate-400">UZS</span></p>
                     </div>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={handleExport}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all text-sm font-medium"
-                        >
-                            <Download size={16} />
-                            <span>Eksport</span>
-                        </button>
-                        <button 
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/30 text-sm font-medium"
-                        >
-                            <DollarSign size={18} />
-                            <span>To'lov qo'shish</span>
-                        </button>
+                    <div className="w-px h-10 bg-slate-200 hidden sm:block"></div>
+                    <div className="flex-1 text-center px-4 py-1">
+                        <p className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Kutilmoqda</p>
+                        <p className="font-black text-amber-600 text-xl">{stats.pending.toLocaleString()} <span className="text-xs text-amber-400/70">UZS</span></p>
                     </div>
                 </div>
             </div>
 
-            {/* Finance Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {stats.map((stat, i) => (
-                    <StatsCard key={i} {...stat} />
-                ))}
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatsCard title="Jami Daromad" value={`${stats.total.toLocaleString()} UZS`} icon={DollarSign} color="green" trend="+12%" trendLabel="o'tgan oyga nisbatan" />
+                <StatsCard title="O'rtacha Chek" value={`${Math.round(stats.avg).toLocaleString()} UZS`} icon={TrendingUp} color="blue" trend="Stabil" />
+                <StatsCard title="Kutilayotgan" value={`${stats.pending.toLocaleString()} UZS`} icon={AlertCircle} color="orange" trend="Diqqat" />
             </div>
 
-            {/* Transactions Table */}
-            <div className="space-y-4">
-                {loading ? (
-                    <div className="text-center py-10">Loading transactions...</div>
-                ) : (
-                    <Table headers={['ID', 'O\'quvchi', 'Sana', 'Turi', 'Summa', 'Holat', 'Amallar']}>
-                        {filteredTransactions.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                                    {searchQuery ? 'Hech qanday natija topilmadi' : 'To\'lovlar mavjud emas'}
+            {/* Controls */}
+            <div className="glass-card p-2 flex flex-col md:flex-row items-center gap-3 sticky top-24 z-30">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                        type="text"
+                        placeholder="ID yoki O'quvchi bo'yicha izlash..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
+                    />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button
+                        onClick={handleExport}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all font-bold text-xs uppercase tracking-wider"
+                    >
+                        <Download size={16} />
+                        <span>Eksport</span>
+                    </button>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="flex-1 md:flex-none btn-primary from-blue-500 to-indigo-600 shadow-blue-500/30"
+                    >
+                        <Plus size={18} />
+                        <span>To'lov Qo'shish</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Table */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+            >
+                <Table headers={['ID', 'O\'quvchi', 'Sana', 'Turi', 'Summa', 'Holat', 'Amallar']}>
+                    {loading ? (
+                        <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">Yuklanmoqda...</TableCell></TableRow>
+                    ) : filteredTransactions.length === 0 ? (
+                        <TableRow><TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">Tranzaksiyalar topilmadi</TableCell></TableRow>
+                    ) : (
+                        filteredTransactions.map((trx) => (
+                            <TableRow key={trx.id} className="group hover:bg-slate-50/50">
+                                <TableCell>
+                                    <span className="font-mono text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
+                                        {trx.shortId}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="font-bold text-slate-700">{trx.student}</div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                        <Calendar size={12} />
+                                        {trx.date}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider border border-blue-100">
+                                        {trx.typeLabel}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="font-black text-slate-700">
+                                        {trx.amount.toLocaleString()} <span className="text-[10px] text-slate-400 font-bold">UZS</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${trx.bg}`}>
+                                        {trx.status}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => setViewingTrx(trx)}
+                                            className="p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all hover:scale-110"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleDeletePayment(e, trx.id)}
+                                            className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all hover:scale-110"
+                                        >
+                                            {deletingId === trx.id ? <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div> : <Trash2 size={16} />}
+                                        </button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
-                        ) : (
-                            filteredTransactions.map((trx) => (
-                                <TableRow key={trx.id}>
-                                    <TableCell>
-                                        <span className="font-mono text-xs text-gray-600 font-medium" title={trx.id}>
-                                            {trx.shortId || trx.id}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="font-medium text-gray-900">{trx.student}</div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-sm text-gray-700 whitespace-nowrap">
-                                            {trx.date || '-'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
-                                            {trx.typeLabel || trx.type}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="font-bold text-gray-800">
-                                        {Number(trx.amount).toLocaleString('uz-UZ')} so'm
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${trx.bg}`}>
-                                            {trx.status}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setViewingTrx(trx)}
-                                                className="w-8 h-8 flex items-center justify-center bg-gray-500 hover:bg-gray-600 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
-                                                title="Ko'rish"
-                                            >
-                                                <Eye size={14} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleDeletePayment(e, trx.id)}
-                                                disabled={deletingId === trx.id}
-                                                className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
-                                                title="O'chirish"
-                                            >
-                                                {deletingId === trx.id ? (
-                                                    <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                ) : (
-                                                    <Trash2 size={14} />
-                                                )}
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </Table>
-                )}
-            </div>
+                        ))
+                    )}
+                </Table>
+            </motion.div>
 
-            {/* View Transaction Modal */}
-            {viewingTrx && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4" onClick={() => setViewingTrx(null)}>
-                    <div className="bg-white rounded-2xl w-full max-w-md my-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-6 border-b">
-                            <h2 className="text-xl font-bold text-gray-900">To&apos;lov tafsilotlari</h2>
-                            <button 
-                                type="button"
-                                onClick={() => setViewingTrx(null)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <X size={20} className="text-gray-400" />
+            {/* View Modal */}
+            <AnimatePresence>
+                {viewingTrx && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                            onClick={() => setViewingTrx(null)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-3xl p-8 w-full max-w-sm relative z-10 shadow-2xl"
+                        >
+                            <button onClick={() => setViewingTrx(null)} className="absolute top-4 right-4 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                <X size={20} />
                             </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">ID</span>
-                                <span className="font-mono text-sm font-medium text-gray-900">{viewingTrx.shortId || viewingTrx.id}</span>
+
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                                    <FileText size={32} />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900">Tranzaksiya Cheki</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{viewingTrx.shortId}</p>
                             </div>
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">O&apos;quvchi</span>
-                                <span className="font-medium text-gray-900">{viewingTrx.student}</span>
+
+                            <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <div className="flex justify-between">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">O'quvchi</span>
+                                    <span className="text-sm font-bold text-slate-700">{viewingTrx.student}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Sana</span>
+                                    <span className="text-sm font-bold text-slate-700">{viewingTrx.date}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Turi</span>
+                                    <span className="text-sm font-bold text-slate-700">{viewingTrx.typeLabel}</span>
+                                </div>
+                                <div className="h-px bg-slate-200 my-2"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Jami Summa</span>
+                                    <span className="text-lg font-black text-slate-900">{viewingTrx.amount.toLocaleString()} UZS</span>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">Sana</span>
-                                <span className="text-gray-900">{viewingTrx.date || '-'}</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">To&apos;lov turi</span>
-                                <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-sm font-medium">{viewingTrx.typeLabel || viewingTrx.type}</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">Summa</span>
-                                <span className="text-lg font-bold text-gray-900">{Number(viewingTrx.amount).toLocaleString('uz-UZ')} so&apos;m</span>
-                            </div>
-                            <div>
-                                <span className="text-sm text-gray-500 block mb-1">Holat</span>
-                                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold ${viewingTrx.bg}`}>{viewingTrx.status}</span>
-                            </div>
-                        </div>
-                        <div className="p-6 pt-0">
-                            <button
-                                type="button"
-                                onClick={() => setViewingTrx(null)}
-                                className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
-                            >
-                                Yopish
-                            </button>
-                        </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
             {/* Add Payment Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg my-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-6 border-b">
-                            <h2 className="text-xl font-bold text-gray-900">To'lov qo'shish</h2>
-                            <button 
-                                onClick={() => setIsModalOpen(false)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <X size={20} className="text-gray-400" />
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                            onClick={() => setIsModalOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-3xl p-8 w-full max-w-md relative z-10 shadow-2xl border border-white/20"
+                        >
+                            <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                <X size={20} />
                             </button>
-                        </div>
 
-                        {/* Form */}
-                        <form onSubmit={handleAddPayment} className="p-6 space-y-4" noValidate>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    O'quvchi
-                                </label>
-                                <select
-                                    value={formData.student_id}
-                                    onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    aria-required
-                                >
-                                    <option value="">O'quvchini tanlang</option>
-                                    {students.map((student) => (
-                                        <option key={student.id} value={student.id}>
-                                            {student.full_name || `${student.first_name || ''} ${student.last_name || ''}`.trim()}
-                                            {student.student_code ? ` (${student.student_code})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                            <div className="mb-6">
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Yangi To'lov</h2>
+                                <p className="text-slate-500 font-medium">Qo'lda to'lov kiritish</p>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Summa (so'm)
-                                </label>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={formData.amount}
-                                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="Masalan: 500000 yoki 500000,50"
-                                    aria-required
-                                />
-                            </div>
+                            <form onSubmit={handleAddPayment} className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">O'quvchi</label>
+                                    <select
+                                        value={formData.student_id}
+                                        onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                                        className="input-field"
+                                        required
+                                    >
+                                        <option value="">Tanlang...</option>
+                                        {students.map(s => (
+                                            <option key={s.id} value={s.id}>{s.full_name} ({s.student_code})</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    To'lov turi
-                                </label>
-                                <select
-                                    value={formData.type}
-                                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                >
-                                    <option value="tuition">Tuition (Ta'lim)</option>
-                                    <option value="books">Books (Kitoblar)</option>
-                                    <option value="materials">Materials (Materiallar)</option>
-                                    <option value="other">Other (Boshqa)</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">Summa (so'm)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.amount}
+                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                        className="input-field"
+                                        placeholder="0.00"
+                                        required
+                                    />
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Holat
-                                </label>
-                                <select
-                                    value={formData.status}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                >
-                                    <option value="paid">Paid (To'langan)</option>
-                                    <option value="pending">Pending (Kutilmoqda)</option>
-                                    <option value="overdue">Overdue (Muddati o'tgan)</option>
-                                </select>
-                            </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">Turi</label>
+                                        <select
+                                            value={formData.type}
+                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            className="input-field"
+                                        >
+                                            <option value="tuition">Ta'lim</option>
+                                            <option value="books">Kitoblar</option>
+                                            <option value="materials">Materiallar</option>
+                                            <option value="other">Boshqa</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">Sana</label>
+                                        <input
+                                            type="date"
+                                            value={formData.date}
+                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Sana
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    aria-required
-                                />
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                                >
-                                    Bekor qilish
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={submitting}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleAddPayment(e);
-                                    }}
-                                    className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/30 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {submitting ? 'Saqlanmoqda...' : 'Saqlash'}
-                                </button>
-                            </div>
-                        </form>
+                                <div className="pt-2">
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                                    >
+                                        {submitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Saqlash'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
         </div>
     );
 };
