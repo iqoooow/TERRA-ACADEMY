@@ -392,6 +392,45 @@ const GroupList = () => {
         }
     };
 
+    const handleExport = () => {
+        if (groups.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
+        const headers = ['Guruh nomi', 'Fan', "O'qituvchi", 'Jadval', "O'quvchilar", 'Holat'];
+
+        const escapeCSV = (val) => {
+            if (val === null || val === undefined) return '';
+            const str = String(val);
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const mapDay = { 'Mon': 'Du', 'Tue': 'Se', 'Wed': 'Ch', 'Thu': 'Pa', 'Fri': 'Ju', 'Sat': 'Sh', 'Sun': 'Ya' };
+
+        const rows = groups.map(g => [
+            g.name,
+            g.subject,
+            g.teacher,
+            (g.schedule_days || []).map(d => mapDay[d] || d).join(', '),
+            g.students,
+            g.status
+        ]);
+
+        const csvContent = headers.map(escapeCSV).join(",") + "\n"
+            + rows.map(r => r.map(escapeCSV).join(",")).join("\n");
+
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '_');
+        link.setAttribute("download", `terra_groups_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Guruhlar ro'yxati yuklandi");
+    };
+
     const filteredGroups = groups.filter(g =>
         g.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         g.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -474,7 +513,10 @@ const GroupList = () => {
                     >
                         <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                     </button>
-                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95"
+                    >
                         <Download size={16} />
                         EXPORT CSV
                     </button>
