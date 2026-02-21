@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../components/ui/Table';
 import { supabase } from '../../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, BookOpen, Clock, MessageSquare, Star } from 'lucide-react';
+import { Trophy, BookOpen, MessageSquare, Star } from 'lucide-react';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import { format } from 'date-fns';
 
 const ChildPerformance = () => {
     const [searchParams] = useSearchParams();

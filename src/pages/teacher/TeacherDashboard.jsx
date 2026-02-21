@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/ui/StatsCard';
-import { Users, BookOpen, Clock, Calendar, TrendingUp, CheckCircle2, AlertCircle, Sparkles, ChevronRight, GraduationCap, ClipboardCheck, Star, FileText } from 'lucide-react';
+import { Users, BookOpen, Clock, Calendar, TrendingUp, Sparkles, ClipboardCheck, Star, FileText, BarChart2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
     BarChart,
@@ -57,7 +57,7 @@ const parseScore = (scoreStr) => {
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [teacherName, setTeacherName] = useState('');
     const [schedule, setSchedule] = useState([]);
     const [groupStats, setGroupStats] = useState([]);
@@ -103,7 +103,6 @@ const TeacherDashboard = () => {
             if (groupsError) throw groupsError;
 
             // 3. Calculate Real Stats (Students & Grades)
-            const groupCount = groups?.length || 0;
             let totalStudents = 0;
             let totalScoreSum = 0;
             let groupsWithScore = 0;
@@ -167,7 +166,7 @@ const TeacherDashboard = () => {
             const todayShort = new Date().toLocaleDateString('en-US', { weekday: 'short' });
             const todaySchedule = groups
                 .filter(g => g.schedule_days && g.schedule_days.includes(todayShort))
-                .sort((a, b) => a.time.localeCompare(b.time));
+                .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
             setSchedule(todaySchedule);
 
@@ -365,7 +364,7 @@ const TeacherDashboard = () => {
                     <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex-1 flex flex-col min-h-[400px]">
                         {groupStats.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center">
-                                <BarChart className="text-slate-300 mb-4" size={40} />
+                                <BarChart2 className="text-slate-300 mb-4" size={40} />
                                 <p className="text-slate-400 font-bold">Ma'lumotlar yetarli emas</p>
                             </div>
                         ) : (

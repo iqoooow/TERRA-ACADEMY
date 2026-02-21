@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Check, X, Clock, Loader2, FileText, Users, Search, Calendar, Zap, ClipboardCheck, ArrowUpRight } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
 
@@ -263,7 +263,7 @@ const AttendanceList = () => {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-3 h-3 rounded-full ${s.status === 'present' ? 'bg-emerald-500' : s.status === 'late' ? 'bg-amber-500' : 'bg-rose-500'} animate-pulse`}></div>
+                                                    <div className={`w-3 h-3 rounded-full ${s.status === 'present' ? 'bg-emerald-500' : s.status === 'late' ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
                                                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${statusBadge[s.status]}`}>
                                                         {statusLabel[s.status] || s.status}
                                                     </span>

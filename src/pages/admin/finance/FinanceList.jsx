@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Download, DollarSign, TrendingUp, AlertCircle, Eye, X, Trash2, Calendar, FileText, Filter, Plus, PieChart, ArrowUpRight, ArrowDownRight, Activity, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Download, DollarSign, TrendingUp, Eye, X, Trash2, Calendar, FileText, Plus, PieChart, ArrowUpRight, Activity, RefreshCw } from 'lucide-react';
 import EmptyState from '../../../components/ui/EmptyState';
 import StatsCard from '../../../components/ui/StatsCard';
 import { supabase } from '../../../lib/supabase';
@@ -11,7 +10,6 @@ import { uz } from 'date-fns/locale';
 
 const FinanceList = () => {
     const [transactions, setTransactions] = useState([]);
-    const [rawData, setRawData] = useState([]);
     const [students, setStudents] = useState([]);
     const [stats, setStats] = useState({
         total: 0,
@@ -58,8 +56,6 @@ const FinanceList = () => {
 
             if (error) throw error;
 
-            setRawData(data || []);
-
             const typeLabels = {
                 'tuition': 'Ta\'lim',
                 'books': 'Kitoblar',
@@ -83,9 +79,11 @@ const FinanceList = () => {
 
             setTransactions(formattedTrx);
 
-            const totalRev = (data || []).filter(t => t.status === 'paid').reduce((sum, curr) => sum + Number(curr.amount), 0);
+            const paidTransactions = (data || []).filter(t => t.status === 'paid');
+            const totalRev = paidTransactions.reduce((sum, curr) => sum + Number(curr.amount), 0);
             const pendingRev = (data || []).filter(t => t.status === 'pending').reduce((sum, curr) => sum + Number(curr.amount), 0);
-            const avgTrx = (data || []).length ? (totalRev / data.length) : 0;
+            // Average over paid transactions only — dividing by all transactions was incorrect
+            const avgTrx = paidTransactions.length ? (totalRev / paidTransactions.length) : 0;
 
             setStats({
                 total: totalRev,
@@ -372,7 +370,7 @@ const FinanceList = () => {
                                     </div>
                                     <div className="col-span-1 flex justify-center">
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${trx.status === 'paid' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${trx.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
                                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${trx.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
                                                 }`}>
                                                 {trx.status === 'paid' ? 'TO\'LANGAN' : 'KUTILMOQDA'}

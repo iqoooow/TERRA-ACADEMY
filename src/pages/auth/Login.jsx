@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { GraduationCap, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -11,6 +11,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -20,37 +21,39 @@ const Login = () => {
             const { success, role, error: loginError } = await login(email, password);
             if (success) {
                 toast.success('Xush kelibsiz!');
-                if (role === 'owner') navigate('/admin/dashboard');
+                if (role === 'owner' || role === 'admin') navigate('/admin/dashboard');
                 else if (role === 'teacher') navigate('/teacher/dashboard');
                 else if (role === 'student') navigate('/student/dashboard');
                 else if (role === 'parent') navigate('/parent/dashboard');
                 else navigate('/admin/dashboard');
             } else {
-                toast.error(loginError || 'Email yoki parol noto\'g\'ri');
+                toast.error(loginError || "Email yoki parol noto'g'ri");
             }
-        } catch (err) {
+        } catch {
             toast.error('Tizimga kirishda xatolik yuz berdi');
         } finally {
             setIsLoading(false);
         }
     };
 
+    const handleForgotPassword = (e) => {
+        e.preventDefault();
+        toast('Parolni tiklash uchun administratorga murojaat qiling.', {
+            icon: '🔐',
+            duration: 5000,
+        });
+    };
+
     return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
             {/* Animated Background Elements */}
             <motion.div
-                animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 90, 0],
-                }}
+                animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px]"
             />
             <motion.div
-                animate={{
-                    scale: [1, 1.3, 1],
-                    rotate: [0, -90, 0],
-                }}
+                animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0] }}
                 transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
                 className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/20 rounded-full blur-[120px]"
             />
@@ -71,12 +74,12 @@ const Login = () => {
                             <GraduationCap size={44} className="text-white" />
                         </motion.div>
                         <h1 className="text-5xl font-black text-white tracking-tighter mb-3 italic">TERRA <span className="text-blue-400">ACADEMY</span></h1>
-                        <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px]">Management Intelligence System</p>
+                        <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px]">Boshqaruv tizimi</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-8">
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Universal Identifier</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email manzil</label>
                             <div className="relative group/input">
                                 <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-400 transition-colors" size={20} />
                                 <input
@@ -85,6 +88,7 @@ const Login = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all text-white placeholder:text-slate-600 font-bold text-sm"
                                     placeholder="email@example.com"
+                                    autoComplete="email"
                                     required
                                 />
                             </div>
@@ -92,19 +96,34 @@ const Login = () => {
 
                         <div className="space-y-3">
                             <div className="flex items-center justify-between px-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secret Keyword</label>
-                                <Link to="#" className="text-[10px] font-black text-blue-400 hover:text-white transition-all uppercase tracking-widest">Forgot?</Link>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parol</label>
+                                <button
+                                    type="button"
+                                    onClick={handleForgotPassword}
+                                    className="text-[10px] font-black text-blue-400 hover:text-white transition-all uppercase tracking-widest"
+                                >
+                                    Unutdim?
+                                </button>
                             </div>
                             <div className="relative group/input">
                                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-400 transition-colors" size={20} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all text-white placeholder:text-slate-600 font-bold text-sm"
+                                    className="w-full pl-14 pr-14 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all text-white placeholder:text-slate-600 font-bold text-sm"
                                     placeholder="••••••••••••"
+                                    autoComplete="current-password"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                                    aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko\'rsatish'}
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
                             </div>
                         </div>
 
@@ -119,27 +138,27 @@ const Login = () => {
                                 <Loader2 className="animate-spin" size={20} />
                             ) : (
                                 <>
-                                    Secure Login
-                                    <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                                    Tizimga kirish
+                                    <ArrowRight size={20} className="group-hover/btn:translate-x-2 transition-transform" />
                                 </>
                             )}
                         </motion.button>
 
                         <div className="text-center pt-4">
                             <p className="text-slate-500 text-xs font-black uppercase tracking-widest leading-loose">
-                                New to the academy? <br />
-                                <Link to="/register" className="text-blue-400 hover:text-white font-black decoration-2 underline-offset-8 hover:underline transition-all">Create Professional Account</Link>
+                                Yangi foydalanuvchimisiz? <br />
+                                <Link to="/register" className="text-blue-400 hover:text-white font-black decoration-2 underline-offset-8 hover:underline transition-all">Ro'yxatdan o'tish</Link>
                             </p>
                         </div>
                     </form>
                 </div>
 
                 <p className="mt-12 text-center text-slate-600 text-[10px] font-black uppercase tracking-[0.4em] opacity-50 space-x-4">
-                    <span>SECURITY</span>
+                    <span>XAVFSIZLIK</span>
                     <span>&bull;</span>
-                    <span>PRIVACY</span>
+                    <span>MAXFIYLIK</span>
                     <span>&bull;</span>
-                    <span>PERFORMANCE</span>
+                    <span>TEZLIK</span>
                 </p>
             </motion.div>
         </div>
@@ -147,4 +166,3 @@ const Login = () => {
 };
 
 export default Login;
-

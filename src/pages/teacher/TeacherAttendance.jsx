@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Check, X, Clock, Loader2, Users, ChevronDown, CheckCircle2, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Check, X, Clock, Loader2, Users, ChevronDown, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Search, Loader2, Trophy, Target, Star, Filter, ArrowUpRight, Zap, ListChecks, RefreshCw, PieChart } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { GraduationCap, Search, Loader2, Trophy, Target, Star, ArrowUpRight, Zap, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -157,7 +157,7 @@ const GradeList = () => {
                 </div>
             ) : filtered.length === 0 ? (
                 <EmptyState
-                    icon={PieChart}
+                    icon={GraduationCap}
                     title="Baholar topilmadi"
                     description={searchQuery ? `"${searchQuery}" bo'yicha hech qanday baxo topilmadi.` : "Hozircha baholar jurnali bo'sh."}
                 />

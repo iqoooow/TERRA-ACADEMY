@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Check, X, User, Phone, Mail, Filter, ShieldCheck, UserCheck, Users, Link as RLink, CheckCircle, Clock, FileText, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, User, Phone, ShieldCheck, UserCheck, Users, Link as RLink, CheckCircle, Clock, FileText, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -14,7 +14,45 @@ const RegistrationRequests = () => {
     const [filter, setFilter] = useState('all'); // 'all', 'teacher', 'student', 'parent', 'links'
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
-    const [reason, setReason] = useState('');
+
+    const handleExport = () => {
+        const data = filter === 'links' ? parentLinks : filteredRequests;
+        if (!data.length) return toast.error("Eksport qilish uchun ma'lumot yo'q");
+
+        const escapeCSV = (val) => {
+            if (val === null || val === undefined) return '';
+            const str = String(val);
+            return str.includes(',') || str.includes('"') || str.includes('\n')
+                ? `"${str.replace(/"/g, '""')}"` : str;
+        };
+
+        let csvContent;
+        if (filter === 'links') {
+            const headers = ['Ota-ona', 'Farzand', 'Farzand kodi', 'Sana'];
+            const rows = data.map(l => [
+                `${l.parent?.first_name || ''} ${l.parent?.last_name || ''}`.trim(),
+                `${l.student?.first_name || ''} ${l.student?.last_name || ''}`.trim(),
+                l.student?.student_code || '',
+                new Date(l.created_at).toLocaleDateString()
+            ]);
+            csvContent = headers.map(escapeCSV).join(',') + '\n' + rows.map(r => r.map(escapeCSV).join(',')).join('\n');
+        } else {
+            const headers = ['Ism', 'Familya', 'Rol', 'Email', 'Telefon', 'Sana'];
+            const rows = data.map(r => [r.first_name, r.last_name, r.role, r.email, r.phone, new Date(r.created_at).toLocaleDateString()]);
+            csvContent = headers.map(escapeCSV).join(',') + '\n' + rows.map(r => r.map(escapeCSV).join(',')).join('\n');
+        }
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `arizalar_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast.success('Hisobot yuklab olindi');
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -62,10 +100,23 @@ const RegistrationRequests = () => {
         return () => supabase.removeChannel(channel);
     }, []);
 
+    // Generate unique STU-XXXXXX code for students
+    const generateStudentCode = () => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = 'STU-';
+        for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        return code;
+    };
+
     const handleProfileAction = async (application, action) => {
         setActionLoading(true);
         try {
             if (action === 'approve') {
+                // For students: auto-generate unique student code
+                const studentCode = application.role === 'student'
+                    ? generateStudentCode()
+                    : application.student_code;
+
                 const { error: profileError } = await supabase
                     .from('profiles')
                     .upsert({
@@ -77,7 +128,7 @@ const RegistrationRequests = () => {
                         phone: application.phone,
                         birth_date: application.birth_date,
                         status: 'approved',
-                        student_code: application.student_code
+                        student_code: studentCode
                     }, { onConflict: 'id' });
 
                 if (profileError) throw profileError;
@@ -88,6 +139,42 @@ const RegistrationRequests = () => {
                     .eq('id', application.id);
 
                 if (appError) throw appError;
+
+                // For parents: parse student codes and create pending parent_student links
+                if (application.role === 'parent' && application.student_code) {
+                    let entries = [];
+                    try {
+                        const parsed = JSON.parse(application.student_code);
+                        if (Array.isArray(parsed)) {
+                            entries = parsed.map(e =>
+                                typeof e === 'string' ? { code: e, type: 'guardian' } : e
+                            );
+                        } else {
+                            entries = [{ code: application.student_code, type: 'guardian' }];
+                        }
+                    } catch {
+                        entries = [{ code: application.student_code, type: 'guardian' }];
+                    }
+
+                    for (const entry of entries.filter(e => e.code)) {
+                        const { data: student } = await supabase
+                            .from('profiles')
+                            .select('id')
+                            .eq('student_code', entry.code)
+                            .eq('role', 'student')
+                            .single();
+
+                        if (student) {
+                            await supabase.from('parent_student').upsert({
+                                parent_id: application.id,
+                                student_id: student.id,
+                                status: 'pending',
+                                relationship_type: entry.type || 'guardian',
+                            }, { onConflict: 'parent_id,student_id', ignoreDuplicates: true });
+                        }
+                    }
+                }
+
                 toast.success('Foydalanuvchi tasdiqlandi');
             } else {
                 const { error: appError } = await supabase
@@ -213,9 +300,12 @@ const RegistrationRequests = () => {
                 </div>
 
                 <div className="flex gap-2 p-1">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95"
+                    >
                         <Download size={16} />
-                        EXPORT
+                        Eksport
                     </button>
                 </div>
             </div>

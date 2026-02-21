@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Pencil, Trash2, X, GraduationCap, UserPlus, Filter, Download, Zap, UserCheck, ShieldCheck, Star, Users, ArrowUpRight, Copy, Check, RefreshCw, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+import { Search, Pencil, Trash2, X, GraduationCap, UserPlus, Download, Zap, UserCheck, ShieldCheck, Star, Users, ArrowUpRight, Copy, Check, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import StatsCard from '../../../components/ui/StatsCard';
@@ -38,7 +39,7 @@ const TeacherList = () => {
 
             let query = supabase
                 .from('profiles')
-                .select('id, first_name, last_name, full_name, phone, status, role', { count: 'exact' })
+                .select('id, first_name, last_name, full_name, phone, email, status, role', { count: 'exact' })
                 .eq('role', 'teacher')
                 .order('full_name', { ascending: true })
                 .range(from, to);
@@ -279,7 +280,7 @@ const TeacherList = () => {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-2 rounded-full ${t.status === 'approved' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                        <div className={`w-2 h-2 rounded-full ${t.status === 'approved' ? 'bg-emerald-500' : t.status === 'pending' ? 'bg-amber-500 animate-pulse' : t.status === 'rejected' ? 'bg-rose-500' : 'bg-slate-300'}`}></div>
                                         <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadge(t.status)}`}>
                                             {t.status === 'approved' ? 'Faol' : t.status === 'pending' ? 'Kutilmoqda' : 'Rad etilgan'}
                                         </span>

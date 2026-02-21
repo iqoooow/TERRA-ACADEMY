@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { GraduationCap, Loader2, BookOpen, ChevronDown, CheckCircle2, Clock, Calendar, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { GraduationCap, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -199,7 +199,7 @@ const StudentGrades = () => {
                             className="space-y-4"
                         >
                             <AnimatePresence mode='wait'>
-                                {filteredGrades.map((g, i) => (
+                                {filteredGrades.map((g) => (
                                     <motion.div
                                         key={g.id}
                                         variants={item}
@@ -221,7 +221,7 @@ const StudentGrades = () => {
                                             <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{g.subject}</span>
                                                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${TYPE_COLORS[g.type.toLowerCase()] || TYPE_COLORS.other}`}>
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${TYPE_COLORS[g.type?.toLowerCase()] || TYPE_COLORS.other}`}>
                                                     {g.type}
                                                 </span>
                                             </div>

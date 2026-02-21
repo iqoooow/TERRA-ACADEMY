@@ -1,32 +1,39 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { GraduationCap, Users, UserRound, ArrowLeft, CheckCircle2, Shield, Mail, Lock, Phone, User, Calendar, ArrowRight, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { GraduationCap, Users, UserRound, ArrowLeft, CheckCircle2, Shield, Mail, Lock, Phone, User, Calendar, ArrowRight, Loader2, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
+const getPasswordStrength = (password) => {
+    if (!password) return { score: 0, label: '', color: '' };
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 1) return { score, label: 'Juda zaif', color: 'bg-red-500' };
+    if (score === 2) return { score, label: 'Zaif', color: 'bg-orange-500' };
+    if (score === 3) return { score, label: "O'rtacha", color: 'bg-yellow-500' };
+    if (score === 4) return { score, label: 'Kuchli', color: 'bg-blue-500' };
+    return { score, label: 'Juda kuchli', color: 'bg-emerald-500' };
+};
+
+const RELATIONSHIP_TYPES = [
+    { value: 'father', label: 'Ota' },
+    { value: 'mother', label: 'Ona' },
+    { value: 'guardian', label: 'Vasiy' },
+];
+
 const Register = () => {
-    const navigate = useNavigate();
     const { register } = useAuth();
     const [step, setStep] = useState(1);
     const [selectedRole, setSelectedRole] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-
-    // Deep link handling (Antigravity Level UX)
-    React.useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const role = params.get('role');
-        const code = params.get('code');
-
-        if (role && ['student', 'teacher', 'parent'].includes(role)) {
-            setSelectedRole(role);
-            setStep(2);
-        }
-        if (code) {
-            setFormData(prev => ({ ...prev, student_code: code.toUpperCase() }));
-        }
-    }, []);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const [formData, setFormData] = useState({
         first_name: '',
@@ -36,8 +43,24 @@ const Register = () => {
         birth_date: '',
         password: '',
         password_confirm: '',
-        student_code: ''
     });
+
+    // Multi-child entries: [{ code: string, type: 'father'|'mother'|'guardian' }]
+    const [children, setChildren] = useState([{ code: '', type: 'guardian' }]);
+
+    // Deep link handling: ?role=parent&code=STU-XXXXXX
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const role = params.get('role');
+        const code = params.get('code');
+        if (role && ['student', 'teacher', 'parent'].includes(role)) {
+            setSelectedRole(role);
+            setStep(2);
+        }
+        if (code) {
+            setChildren([{ code: code.toUpperCase(), type: 'guardian' }]);
+        }
+    }, []);
 
     const roles = [
         { id: 'teacher', title: "O'qituvchi", icon: GraduationCap, description: 'Darslarni boshqarish, baholash va o\'quvchilar bilan ishlash', color: 'blue' },
@@ -54,8 +77,25 @@ const Register = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const handleChildChange = (idx, field, value) => {
+        setChildren(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+    };
+
+    const handleAddChild = () => {
+        setChildren(prev => [...prev, { code: '', type: 'guardian' }]);
+    };
+
+    const handleRemoveChild = (idx) => {
+        setChildren(prev => prev.filter((_, i) => i !== idx));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (formData.password.length < 8) {
+            toast.error('Parol kamida 8 ta belgidan iborat bo\'lishi kerak');
+            return;
+        }
 
         if (formData.password !== formData.password_confirm) {
             toast.error('Parollar bir-biriga mos kelmadi');
@@ -67,19 +107,28 @@ const Register = () => {
         try {
             const { supabase } = await import('../../lib/supabase');
 
-            // If role is parent, verify student_code exists first
-            if (selectedRole === 'parent' && formData.student_code) {
-                const { data: studentData, error: studentError } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('student_code', formData.student_code.toUpperCase())
-                    .eq('role', 'student')
-                    .single();
-
-                if (studentError || !studentData) {
-                    toast.error('Farzand kodi notoʻgʻri yoki bunday oʻquvchi topilmadi');
+            // If parent: validate each student code
+            if (selectedRole === 'parent') {
+                const filledChildren = children.filter(c => c.code.trim());
+                if (filledChildren.length === 0) {
+                    toast.error('Kamida 1 ta farzand kodini kiriting');
                     setIsLoading(false);
                     return;
+                }
+
+                for (const child of filledChildren) {
+                    const { data: studentData } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('student_code', child.code.toUpperCase().trim())
+                        .eq('role', 'student')
+                        .single();
+
+                    if (!studentData) {
+                        toast.error(`"${child.code}" — bunday o'quvchi kodi topilmadi`);
+                        setIsLoading(false);
+                        return;
+                    }
                 }
             }
 
@@ -91,7 +140,15 @@ const Register = () => {
             const { success: regSuccess, user, error: regError } = await register(formData.email, formData.password, metadata);
 
             if (regSuccess) {
-                // Insert into applications table instead of profiles
+                // Build student_code field: JSON for multi-child, null for others
+                let studentCodeField = null;
+                if (selectedRole === 'parent') {
+                    const filledChildren = children
+                        .filter(c => c.code.trim())
+                        .map(c => ({ code: c.code.toUpperCase().trim(), type: c.type }));
+                    studentCodeField = JSON.stringify(filledChildren);
+                }
+
                 const { error: appError } = await supabase
                     .from('applications')
                     .insert({
@@ -103,7 +160,7 @@ const Register = () => {
                         email: formData.email,
                         birth_date: formData.birth_date || null,
                         role: selectedRole,
-                        student_code: formData.student_code || null,
+                        student_code: studentCodeField,
                         status: 'pending'
                     });
 
@@ -118,6 +175,7 @@ const Register = () => {
                 toast.error(regError || 'Xatolik yuz berdi');
             }
         } catch (err) {
+            console.error(err);
             toast.error('Kutilmagan xatolik yuz berdi');
         } finally {
             setIsLoading(false);
@@ -219,69 +277,186 @@ const Register = () => {
                                 <h2 className="text-3xl font-black text-slate-900 mt-3 tracking-tight">Ma'lumotlarni to'ldiring</h2>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ism</label>
-                                    <div className="relative group/input">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="first_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Ali" />
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ism</label>
+                                        <div className="relative group/input">
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input name="first_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Ali" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Familya</label>
-                                    <div className="relative group/input">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="last_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Valiyev" />
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Familya</label>
+                                        <div className="relative group/input">
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input name="last_name" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="Valiyev" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label>
-                                    <div className="relative group/input">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="email" type="email" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="ali@example.com" />
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label>
+                                        <div className="relative group/input">
+                                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input name="email" type="email" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="ali@example.com" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Telefon</label>
-                                    <div className="relative group/input">
-                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="phone" type="tel" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="+998 90 123 45 67" />
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Telefon</label>
+                                        <div className="relative group/input">
+                                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input name="phone" type="tel" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="+998 90 123 45 67" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tug'ilgan sana</label>
-                                    <div className="relative group/input">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="birth_date" type="date" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" />
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tug'ilgan sana</label>
+                                        <div className="relative group/input">
+                                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input name="birth_date" type="date" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" />
+                                        </div>
+                                    </div>
+
+                                    {/* Password fields */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Parol</label>
+                                        <div className="relative group/input">
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input
+                                                name="password"
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                minLength={8}
+                                                onChange={handleChange}
+                                                className="input-field pl-12 pr-12 bg-slate-50/50"
+                                                placeholder="En kamida 8 ta belgi"
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                        {formData.password && (() => {
+                                            const strength = getPasswordStrength(formData.password);
+                                            return (
+                                                <div className="px-1 space-y-1">
+                                                    <div className="flex gap-1">
+                                                        {[1, 2, 3, 4, 5].map(i => (
+                                                            <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-slate-200'}`} />
+                                                        ))}
+                                                    </div>
+                                                    <p className={`text-[10px] font-black uppercase tracking-widest ${strength.score <= 1 ? 'text-red-500' : strength.score <= 2 ? 'text-orange-500' : strength.score <= 3 ? 'text-yellow-600' : strength.score <= 4 ? 'text-blue-500' : 'text-emerald-500'}`}>
+                                                        {strength.label}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Parolni tasdiqlang</label>
+                                        <div className="relative group/input">
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
+                                            <input
+                                                name="password_confirm"
+                                                type={showConfirm ? 'text' : 'password'}
+                                                required
+                                                onChange={handleChange}
+                                                className={`input-field pl-12 pr-12 bg-slate-50/50 ${formData.password_confirm && formData.password !== formData.password_confirm ? 'border-red-300 focus:border-red-400' : ''}`}
+                                                placeholder="••••••••"
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirm(!showConfirm)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                            >
+                                                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                        {formData.password_confirm && formData.password !== formData.password_confirm && (
+                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest px-1">Parollar mos kelmaydi</p>
+                                        )}
                                     </div>
                                 </div>
 
+                                {/* Multi-child section (parents only) */}
                                 {selectedRole === 'parent' && (
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Farzand kodi</label>
-                                        <div className="relative group/input">
-                                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
-                                            <input name="student_code" required onChange={handleChange} className="input-field pl-12 border-blue-200 bg-blue-50 uppercase font-mono tracking-widest" placeholder="STU-XXXXXX" />
+                                    <div className="border-t border-slate-100 pt-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Farzandlar</p>
+                                                <p className="text-xs text-slate-400 mt-0.5">Har bir farzandning STU-XXXXXX kodini kiriting</p>
+                                            </div>
+                                            <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                                                {children.length} ta farzand
+                                            </span>
                                         </div>
+
+                                        <div className="space-y-3">
+                                            <AnimatePresence>
+                                                {children.map((child, idx) => (
+                                                    <motion.div
+                                                        key={idx}
+                                                        initial={{ opacity: 0, y: -10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -10, height: 0 }}
+                                                        className="flex items-center gap-3"
+                                                    >
+                                                        {/* Code input */}
+                                                        <div className="relative flex-1 group/input">
+                                                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500" size={16} />
+                                                            <input
+                                                                type="text"
+                                                                value={child.code}
+                                                                onChange={e => handleChildChange(idx, 'code', e.target.value)}
+                                                                required={idx === 0}
+                                                                placeholder={`Farzand ${idx + 1} kodi: STU-XXXXXX`}
+                                                                className="input-field pl-10 pr-4 bg-purple-50/50 border-purple-200 focus:border-purple-400 uppercase font-mono tracking-widest text-sm"
+                                                            />
+                                                        </div>
+
+                                                        {/* Relationship type selector */}
+                                                        <select
+                                                            value={child.type}
+                                                            onChange={e => handleChildChange(idx, 'type', e.target.value)}
+                                                            className="py-3.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-700 focus:ring-2 focus:ring-purple-500/20 focus:outline-none cursor-pointer"
+                                                        >
+                                                            {RELATIONSHIP_TYPES.map(rt => (
+                                                                <option key={rt.value} value={rt.value}>{rt.label}</option>
+                                                            ))}
+                                                        </select>
+
+                                                        {/* Remove button (only if more than 1) */}
+                                                        {children.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveChild(idx)}
+                                                                className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-all shrink-0"
+                                                                title="O'chirish"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                    </motion.div>
+                                                ))}
+                                            </AnimatePresence>
+                                        </div>
+
+                                        {/* Add child button */}
+                                        <button
+                                            type="button"
+                                            onClick={handleAddChild}
+                                            className="mt-3 w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-purple-200 text-purple-600 rounded-2xl hover:border-purple-400 hover:bg-purple-50 transition-all text-[10px] font-black uppercase tracking-widest"
+                                        >
+                                            <Plus size={16} />
+                                            Boshqa farzand qo'shish
+                                        </button>
                                     </div>
                                 )}
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Parol</label>
-                                    <div className="relative group/input">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="password" type="password" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="••••••••" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tasdiqlash</label>
-                                    <div className="relative group/input">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-blue-500 transition-colors" size={18} />
-                                        <input name="password_confirm" type="password" required onChange={handleChange} className="input-field pl-12 bg-slate-50/50" placeholder="••••••••" />
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2 mt-6">
+                                <div className="pt-2">
                                     <motion.button
                                         whileHover={{ scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}
@@ -308,4 +483,3 @@ const Register = () => {
 };
 
 export default Register;
-

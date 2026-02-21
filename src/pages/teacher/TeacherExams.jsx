@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, FileText, Calendar, Clock, MapPin, Search, MoreVertical, Trash2, Edit2, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, FileText, Clock, MapPin, Search, MoreVertical, Trash2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';

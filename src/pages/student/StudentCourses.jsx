@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, Clock, Users, ChevronRight, BarChart2, Star, Calendar, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BookOpen, Clock, Users, ChevronRight, Calendar, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';

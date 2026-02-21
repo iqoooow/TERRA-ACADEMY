@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronRight, GraduationCap, Users, Clock, Calendar, BookOpen, MoreVertical, Sparkles, Loader2, BarChart2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { format } from 'date-fns';
 
 const TeacherGroups = () => {
     const { user } = useAuth();

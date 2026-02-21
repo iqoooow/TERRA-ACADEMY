@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Filter, Pencil, Trash2, X, Download, UserPlus, User, GraduationCap, Copy, Calendar, Phone, ShieldCheck, Activity, ChevronLeft, ChevronRight, RefreshCw, PieChart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Pencil, Trash2, Download, UserPlus, GraduationCap, Copy, Calendar, Phone, ShieldCheck, Activity, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -327,8 +326,8 @@ const StudentList = () => {
                                         </div>
                                         <div className="col-span-1 flex justify-center">
                                             <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 border ${getStatusBadge(student.status)}`}>
-                                                <div className={`w-2 h-2 rounded-full animate-pulse ${student.status === 'approved' ? 'bg-emerald-500' :
-                                                    student.status === 'pending' ? 'bg-amber-500' : 'bg-rose-500'
+                                                <div className={`w-2 h-2 rounded-full ${student.status === 'approved' ? 'bg-emerald-500' :
+                                                    student.status === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
                                                     }`} />
                                                 {student.status}
                                             </div>

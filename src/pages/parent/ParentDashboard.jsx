@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { User, BookOpen, Clock, AlertTriangle, ChevronRight, Zap, Target, TrendingUp, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BookOpen, Clock, AlertTriangle, ChevronRight, Zap, Target, TrendingUp, DollarSign } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
-import { uz } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 import LoadingScreen from '../../components/common/LoadingScreen';
 
 const ParentDashboard = () => {
@@ -120,6 +118,20 @@ const ParentDashboard = () => {
                     <p className="text-teal-50/80 font-medium text-lg max-w-xl leading-relaxed">
                         Farzandlaringizning ta'lim jarayoni va yutuqlarini doimiy kuzatib boring.
                     </p>
+                    {children.length > 0 && (
+                        <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white/10 rounded-full border border-white/10 backdrop-blur-sm">
+                            <div className="flex -space-x-2">
+                                {children.slice(0, 3).map((c, i) => (
+                                    <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-white/20 flex items-center justify-center text-white font-black text-[9px]">
+                                        {c.shortName?.charAt(0)}
+                                    </div>
+                                ))}
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-200 uppercase tracking-widest">
+                                {children.length} ta farzand kuzatilmoqda
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
 

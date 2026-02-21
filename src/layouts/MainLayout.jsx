@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Menu, User, Bell, Search, ChevronDown, Monitor } from 'lucide-react';
+import { Menu, User, Bell, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlobalSearch from '../components/common/GlobalSearch';
 
@@ -51,7 +51,8 @@ const MainLayout = () => {
         return titles[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
     };
 
-    const mainContentMargin = isMobile ? 'ml-0' : (isSidebarCollapsed ? 'ml-[80px]' : 'ml-[280px]');
+    // Match sidebar collapsed width of 88px (sidebarWidth = 88 in Sidebar.jsx)
+    const mainContentMargin = isMobile ? 'ml-0' : (isSidebarCollapsed ? 'ml-[88px]' : 'ml-[280px]');
 
     return (
         <div className="min-h-screen bg-slate-50 flex overflow-hidden font-sans">

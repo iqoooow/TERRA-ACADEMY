@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Pencil, Trash2, Users, UsersRound, X, ChevronDown, Check, Clock, CalendarDays, BookOpen, GraduationCap, Filter, Download, UserCheck, RefreshCw, PieChart } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Users, UsersRound, X, ChevronDown, Check, Clock, CalendarDays, GraduationCap, Download, UserCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -83,7 +83,7 @@ const SearchableSelect = ({ value, onChange, options, placeholder, displayKey = 
 };
 
 // Day Checkbox Component (Premium)
-const DayCheckbox = ({ day, label, checked, onChange }) => (
+const DayCheckbox = ({ label, checked, onChange }) => (
     <label className={`flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 ${checked
         ? 'border-blue-500 bg-blue-500 text-white shadow-lg shadow-blue-500/30'
         : 'border-slate-100 bg-white text-slate-500 hover:border-blue-200 hover:bg-blue-50'
@@ -102,7 +102,6 @@ const GroupList = () => {
     // Group Modal State
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
     const [editingGroup, setEditingGroup] = useState(null);
-    const [lang, setLang] = useState('uz'); // 'uz' or 'ru'
     const [formData, setFormData] = useState({
         name: '',
         subject_id: '',
@@ -718,8 +717,7 @@ const GroupList = () => {
                                         {days.map(day => (
                                             <DayCheckbox
                                                 key={day.key}
-                                                day={day.key}
-                                                label={day[lang]}
+                                                label={day.uz}
                                                 checked={formData.schedule_days.includes(day.key)}
                                                 onChange={() => toggleDay(day.key)}
                                             />

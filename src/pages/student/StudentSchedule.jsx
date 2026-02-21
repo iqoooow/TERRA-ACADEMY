@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Calendar, Clock, BookOpen, User, MapPin, ChevronRight, Loader2 } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const StudentSchedule = () => {
@@ -58,7 +58,7 @@ const StudentSchedule = () => {
     const getDaySchedule = (dayKey) => {
         return schedule
             .filter(group => group.schedule_days && group.schedule_days.includes(dayKey))
-            .sort((a, b) => a.time.localeCompare(b.time));
+            .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     };
 
     const container = {
@@ -137,7 +137,7 @@ const StudentSchedule = () => {
                             {/* Lessons List */}
                             <div className="space-y-4 flex-1">
                                 {lessons.length > 0 ? (
-                                    lessons.map((group, idx) => (
+                                    lessons.map((group) => (
                                         <div
                                             key={group.id}
                                             className={`p-4 rounded-2xl transition-all relative overflow-hidden group/item ${isToday

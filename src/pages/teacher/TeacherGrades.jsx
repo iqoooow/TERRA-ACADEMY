@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { GraduationCap, Plus, Loader2, X, Trash2, CheckCircle2, Award, Zap, ChevronDown, Calendar, Filter, Link, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { GraduationCap, Plus, Loader2, X, Trash2, CheckCircle2, Award, Zap, ChevronDown, Calendar, Filter, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';

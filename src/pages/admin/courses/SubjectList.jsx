@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Pencil, Trash2, X, BookOpen, Layers, Filter, Zap, ShieldCheck, CreditCard, Download, RefreshCw, PieChart, Tag, DollarSign } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, BookOpen, Layers, Zap, ShieldCheck, CreditCard, RefreshCw, Tag, DollarSign } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';

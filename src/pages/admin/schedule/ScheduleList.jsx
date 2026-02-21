@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, ChevronDown, ChevronUp, BookOpen, Layers, Filter, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, Users, ChevronDown, BookOpen, Layers, Filter, Search } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';

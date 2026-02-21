@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Trophy, Clock, Calendar, TrendingUp, Star, Award, ChevronRight, Zap } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import StatsCard from '../../components/ui/StatsCard';
@@ -50,7 +50,7 @@ const parseScore = (scoreStr) => {
 const StudentDashboard = () => {
     const [stats, setStats] = useState([]);
     const [studentName, setStudentName] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [greeting, setGreeting] = useState('');
     const [upcomingExams, setUpcomingExams] = useState([]);
     const [progressData, setProgressData] = useState([]);
@@ -106,6 +106,10 @@ const StudentDashboard = () => {
             }
 
             // 4. Get Real Grades per Subject
+            // Declare outside the if block so setStats below can always reference them
+            let totalSum = 0;
+            let totalCount = 0;
+
             if (groupIds.length > 0) {
                 const { data: grades } = await supabase
                     .from('grades')
@@ -125,9 +129,6 @@ const StudentDashboard = () => {
                 });
 
                 const chartData = [];
-                let totalSum = 0;
-                let totalCount = 0;
-
                 const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
                 enrollments.forEach((e, idx) => {

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, CreditCard, Activity, ArrowUpRight, Filter, Download, Calendar, TrendingUp, UserPlus, DollarSign, Command, Plus, Shield, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Users, GraduationCap, CreditCard, Activity, Download, Calendar, UserPlus, DollarSign, Plus, Shield, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import StatsCard from '../../components/ui/StatsCard';
 import { supabase } from '../../lib/supabase';
 import {
@@ -11,14 +12,20 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
-    Cell
+    ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
+// Custom bar shape: reads `fill` from the data payload, replaces deprecated <Cell>
+const ColoredBar = ({ x, y, width, height, fill }) => {
+    if (!width || height <= 0) return null;
+    return <rect x={x} y={y} rx={6} ry={6} width={width} height={height} fill={fill || '#D1FAE5'} />;
+};
+
 const AdminDashboard = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState([
         { title: "O'quvchilar", value: '...', change: '...', icon: GraduationCap, color: 'blue' },
         { title: "O'qituvchilar", value: '...', change: '...', icon: Users, color: 'purple' },
@@ -41,15 +48,27 @@ const AdminDashboard = () => {
             const { count: teacherCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher');
             const { count: groupCount } = await supabase.from('groups').select('*', { count: 'exact', head: true });
 
-            // 2. Fetch Financials (Current Month)
+            // 2. Fetch Financials (Current Month) — combines both payment systems
             const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+            const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+            // System 1: payments table (FinanceList manual entries)
             const { data: currentMonthPayments } = await supabase
-                .from('monthly_payments')
-                .select('paid_amount')
-                .eq('payment_month', currentMonthStart)
+                .from('payments')
+                .select('amount')
+                .gte('date', currentMonthStart)
+                .lte('date', currentMonthEnd)
                 .eq('status', 'paid');
 
-            const currentRevenue = currentMonthPayments?.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0) || 0;
+            // System 2: payment_transactions (StudentPayments monthly system)
+            const { data: currentMonthTxs } = await supabase
+                .from('payment_transactions')
+                .select('amount')
+                .gte('created_at', `${currentMonthStart}T00:00:00`)
+                .lte('created_at', `${currentMonthEnd}T23:59:59`);
+
+            const paymentsRev = (currentMonthPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const txRev = (currentMonthTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            const currentRevenue = paymentsRev + txRev;
 
             setStats([
                 { title: "Jami O'quvchilar", value: studentCount || 0, change: '+12%', icon: GraduationCap, color: 'indigo', trendLabel: "o'tgan oyga nisbatan" },
@@ -64,12 +83,13 @@ const AdminDashboard = () => {
                 months.push(subMonths(new Date(), i));
             }
 
-            // Parallel fetch for chart data (Optimized)
+            // Parallel fetch for chart data — using `payments` table (avoids monthly_payments 400s)
             const chartPromises = months.map(async (date) => {
                 const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
+                const monthEnd = format(endOfMonth(date), 'yyyy-MM-dd');
                 const monthName = format(date, 'MMM', { locale: uz });
 
-                // Enrollment (New students in that month) - Approximation
+                // Enrollment (New students in that month)
                 const { count: newStudents } = await supabase
                     .from('profiles')
                     .select('*', { count: 'exact', head: true })
@@ -77,26 +97,32 @@ const AdminDashboard = () => {
                     .gte('created_at', format(startOfMonth(date), "yyyy-MM-dd'T'00:00:00"))
                     .lte('created_at', format(endOfMonth(date), "yyyy-MM-dd'T'23:59:59"));
 
-                // Revenue
+                // Revenue from `payments` table (date-range filter)
                 const { data: payments } = await supabase
-                    .from('monthly_payments')
-                    .select('paid_amount')
-                    .eq('payment_month', monthStart)
+                    .from('payments')
+                    .select('amount')
+                    .gte('date', monthStart)
+                    .lte('date', monthEnd)
                     .eq('status', 'paid');
 
-                const revenue = payments?.reduce((sum, p) => sum + Number(p.paid_amount || 0), 0) || 0;
+                const revenue = payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
 
                 return {
                     name: monthName,
                     students: newStudents || 0,
                     income: revenue,
-                    displayIncome: (revenue / 1000000).toFixed(1) // In Millions
+                    displayIncome: (revenue / 1000000).toFixed(1)
                 };
             });
 
             const chartData = await Promise.all(chartPromises);
-            setEnrollmentData(chartData);
-            setFinancialData(chartData);
+            // Bake per-bar fill into data so ColoredBar shape can read it (replaces deprecated Cell)
+            const coloredChartData = chartData.map((d, i) => ({
+                ...d,
+                fill: i === chartData.length - 1 ? '#10B981' : '#D1FAE5'
+            }));
+            setEnrollmentData(coloredChartData);
+            setFinancialData(coloredChartData);
 
             // 4. Recent Activity (New Users)
             const { data: newUsers } = await supabase
@@ -160,7 +186,8 @@ const AdminDashboard = () => {
                             Xush kelibsiz, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-100">Admin!</span>
                         </h1>
                         <p className="text-slate-400 font-medium text-lg max-w-xl leading-relaxed">
-                            Bugungi kunda tizimda {stats[0].value} tadan ortiq faol foydalanuvchi mavjud.
+                            Bugungi kunda tizimda{' '}
+                            {stats[0].value === '...' ? 'yuklanmoqda...' : `${stats[0].value} tadan ortiq faol foydalanuvchi`} mavjud.
                         </p>
                     </div>
 
@@ -185,12 +212,16 @@ const AdminDashboard = () => {
             {/* Quick Actions Bar */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: 'Yangi O\'quvchi', icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50 hover:bg-blue-100' },
-                    { label: 'Guruh Yaratish', icon: Plus, color: 'text-purple-500', bg: 'bg-purple-50 hover:bg-purple-100' },
-                    { label: 'To\'lov Qabul Qilish', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 hover:bg-emerald-100' },
-                    { label: 'Tizim Sozlamalari', icon: Command, color: 'text-slate-500', bg: 'bg-slate-50 hover:bg-slate-100' },
+                    { label: "Yangi O'quvchi", icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50 hover:bg-blue-100', path: '/admin/registration-requests' },
+                    { label: 'Guruh Yaratish', icon: Plus, color: 'text-purple-500', bg: 'bg-purple-50 hover:bg-purple-100', path: '/admin/groups' },
+                    { label: "To'lov Qabul Qilish", icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 hover:bg-emerald-100', path: '/admin/finance' },
+                    { label: 'Moliya Hisoboti', icon: Activity, color: 'text-slate-500', bg: 'bg-slate-50 hover:bg-slate-100', path: '/admin/payments' },
                 ].map((action, i) => (
-                    <button key={i} className={`p-4 rounded-2xl border border-transparent transition-all duration-300 flex items-center justify-center gap-3 group ${action.bg}`}>
+                    <button
+                        key={i}
+                        onClick={() => navigate(action.path)}
+                        className={`p-4 rounded-2xl border border-transparent transition-all duration-300 flex items-center justify-center gap-3 group active:scale-95 ${action.bg}`}
+                    >
                         <span className={`p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform ${action.color}`}>
                             <action.icon size={20} strokeWidth={2.5} />
                         </span>
@@ -208,7 +239,7 @@ const AdminDashboard = () => {
             >
                 {stats.map((stat, index) => (
                     <motion.div key={index} variants={item}>
-                        <StatsCard {...stat} idx={index} />
+                        <StatsCard {...stat} idx={index} loading={loading} />
                     </motion.div>
                 ))}
             </motion.div>
@@ -235,8 +266,8 @@ const AdminDashboard = () => {
                             So'nggi 6 oy
                         </div>
                     </div>
-                    <div className="h-[350px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full">
+                        <ResponsiveContainer width="100%" height={350} debounce={50}>
                             <AreaChart data={enrollmentData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
@@ -291,8 +322,8 @@ const AdminDashboard = () => {
                             </h3>
                         </div>
                     </div>
-                    <div className="flex-1 w-full min-h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full">
+                        <ResponsiveContainer width="100%" height={320} debounce={50}>
                             <BarChart data={financialData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11, fontWeight: 700 }} dy={10} />
@@ -310,11 +341,7 @@ const AdminDashboard = () => {
                                     labelStyle={{ color: '#fff', opacity: 0.8 }}
                                     formatter={(value) => [`${value} mln`, 'Tushum']}
                                 />
-                                <Bar dataKey="displayIncome" radius={[6, 6, 6, 6]} barSize={20} animationDuration={2000}>
-                                    {financialData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === financialData.length - 1 ? '#10B981' : '#D1FAE5'} />
-                                    ))}
-                                </Bar>
+                                <Bar dataKey="displayIncome" barSize={20} animationDuration={2000} shape={<ColoredBar />} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
