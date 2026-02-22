@@ -48,27 +48,17 @@ const AdminDashboard = () => {
             const { count: teacherCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher');
             const { count: groupCount } = await supabase.from('groups').select('*', { count: 'exact', head: true });
 
-            // 2. Fetch Financials (Current Month) — combines both payment systems
+            // 2. Fetch Financials (Current Month) — from payment_transactions
             const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
             const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-            // System 1: payments table (FinanceList manual entries)
-            const { data: currentMonthPayments } = await supabase
-                .from('payments')
-                .select('amount')
-                .gte('date', currentMonthStart)
-                .lte('date', currentMonthEnd)
-                .eq('status', 'paid');
 
-            // System 2: payment_transactions (StudentPayments monthly system)
             const { data: currentMonthTxs } = await supabase
                 .from('payment_transactions')
                 .select('amount')
                 .gte('created_at', `${currentMonthStart}T00:00:00`)
                 .lte('created_at', `${currentMonthEnd}T23:59:59`);
 
-            const paymentsRev = (currentMonthPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-            const txRev = (currentMonthTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
-            const currentRevenue = paymentsRev + txRev;
+            const currentRevenue = (currentMonthTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
             setStats([
                 { title: "Jami O'quvchilar", value: studentCount || 0, change: '+12%', icon: GraduationCap, color: 'indigo', trendLabel: "o'tgan oyga nisbatan" },
@@ -83,29 +73,28 @@ const AdminDashboard = () => {
                 months.push(subMonths(new Date(), i));
             }
 
-            // Parallel fetch for chart data — using `payments` table (avoids monthly_payments 400s)
+            // Parallel fetch for chart data — payment_transactions (correct table)
             const chartPromises = months.map(async (date) => {
-                const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
-                const monthEnd = format(endOfMonth(date), 'yyyy-MM-dd');
+                const monthStart = format(startOfMonth(date), "yyyy-MM-dd'T'00:00:00");
+                const monthEnd = format(endOfMonth(date), "yyyy-MM-dd'T'23:59:59");
                 const monthName = format(date, 'MMM', { locale: uz });
 
-                // Enrollment (New students in that month)
+                // New students registered in that month
                 const { count: newStudents } = await supabase
                     .from('profiles')
                     .select('*', { count: 'exact', head: true })
                     .eq('role', 'student')
-                    .gte('created_at', format(startOfMonth(date), "yyyy-MM-dd'T'00:00:00"))
-                    .lte('created_at', format(endOfMonth(date), "yyyy-MM-dd'T'23:59:59"));
+                    .gte('created_at', monthStart)
+                    .lte('created_at', monthEnd);
 
-                // Revenue from `payments` table (date-range filter)
-                const { data: payments } = await supabase
-                    .from('payments')
+                // Revenue from payment_transactions
+                const { data: txs } = await supabase
+                    .from('payment_transactions')
                     .select('amount')
-                    .gte('date', monthStart)
-                    .lte('date', monthEnd)
-                    .eq('status', 'paid');
+                    .gte('created_at', monthStart)
+                    .lte('created_at', monthEnd);
 
-                const revenue = payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
+                const revenue = (txs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
                 return {
                     name: monthName,
@@ -215,7 +204,7 @@ const AdminDashboard = () => {
                     { label: "Yangi O'quvchi", icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50 hover:bg-blue-100', path: '/admin/registration-requests' },
                     { label: 'Guruh Yaratish', icon: Plus, color: 'text-purple-500', bg: 'bg-purple-50 hover:bg-purple-100', path: '/admin/groups' },
                     { label: "To'lov Qabul Qilish", icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 hover:bg-emerald-100', path: '/admin/finance' },
-                    { label: 'Moliya Hisoboti', icon: Activity, color: 'text-slate-500', bg: 'bg-slate-50 hover:bg-slate-100', path: '/admin/payments' },
+                    { label: "O'quvchilar Ro'yxati", icon: GraduationCap, color: 'text-indigo-500', bg: 'bg-indigo-50 hover:bg-indigo-100', path: '/admin/students' },
                 ].map((action, i) => (
                     <button
                         key={i}
