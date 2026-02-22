@@ -57,12 +57,12 @@ const FinanceList = () => {
                     method,
                     note,
                     created_at,
-                    monthly_payments (
+                    monthly_payments!payment_id!inner (
                         id,
                         student_id,
                         payment_month,
                         status,
-                        profiles ( full_name )
+                        profiles!student_id ( full_name )
                     )
                 `)
                 .order('created_at', { ascending: false })
