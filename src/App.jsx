@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -11,13 +11,21 @@ import NotFound from './pages/NotFound';
 
 // Auth Pages
 const Login = lazy(() => import('./pages/auth/Login'));
-const Register = lazy(() => import('./pages/auth/Register'));
+
+// Onboarding
+const FirstLoginSetup = lazy(() => import('./pages/onboarding/FirstLoginSetup'));
+
+// Settings (all roles)
+const ProfileSettings = lazy(() => import('./pages/settings/ProfileSettings'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const StudentList = lazy(() => import('./pages/admin/students/StudentList'));
+const StudentProfile = lazy(() => import('./pages/admin/students/StudentProfile'));
 const TeacherList = lazy(() => import('./pages/admin/teachers/TeacherList'));
+const TeacherProfile = lazy(() => import('./pages/admin/teachers/TeacherProfile'));
 const ParentList = lazy(() => import('./pages/admin/parents/ParentList'));
+const ParentProfile = lazy(() => import('./pages/admin/parents/ParentProfile'));
 const RegistrationRequests = lazy(() => import('./pages/admin/RegistrationRequests'));
 const SubjectList = lazy(() => import('./pages/admin/courses/SubjectList'));
 const GroupList = lazy(() => import('./pages/admin/courses/GroupList'));
@@ -64,8 +72,13 @@ function App() {
       <Router>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
+            {/* Public */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+
+            {/* First Login Setup — authenticated, any role, no sidebar layout */}
+            <Route element={<ProtectedRoute allowedRoles={['owner', 'admin', 'teacher', 'student', 'parent']} />}>
+              <Route path="/setup" element={<FirstLoginSetup />} />
+            </Route>
 
             {/* Owner / Admin Routes */}
             <Route element={<ProtectedRoute allowedRoles={['owner', 'admin']} />}>
@@ -73,8 +86,11 @@ function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/registration-requests" element={<RegistrationRequests />} />
                 <Route path="/admin/students" element={<StudentList />} />
+                <Route path="/admin/students/:id" element={<StudentProfile />} />
                 <Route path="/admin/teachers" element={<TeacherList />} />
+                <Route path="/admin/teachers/:id" element={<TeacherProfile />} />
                 <Route path="/admin/parents" element={<ParentList />} />
+                <Route path="/admin/parents/:id" element={<ParentProfile />} />
                 <Route path="/admin/subjects" element={<SubjectList />} />
                 <Route path="/admin/groups" element={<GroupList />} />
                 <Route path="/admin/finance" element={<FinanceList />} />
@@ -82,6 +98,7 @@ function App() {
                 <Route path="/admin/attendance" element={<AttendanceList />} />
                 <Route path="/admin/grades" element={<GradeList />} />
                 <Route path="/admin/payments" element={<StudentPayments />} />
+                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -93,6 +110,7 @@ function App() {
                 <Route path="/teacher/exams" element={<TeacherExams />} />
                 <Route path="/teacher/grades" element={<TeacherGrades />} />
                 <Route path="/teacher/attendance" element={<TeacherAttendance />} />
+                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -103,6 +121,7 @@ function App() {
                 <Route path="/student/courses" element={<StudentCourses />} />
                 <Route path="/student/grades" element={<StudentGrades />} />
                 <Route path="/student/schedule" element={<StudentSchedule />} />
+                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -112,10 +131,12 @@ function App() {
                 <Route path="/parent/dashboard" element={<ParentDashboard />} />
                 <Route path="/parent/children" element={<ChildPerformance />} />
                 <Route path="/parent/payments" element={<ParentPayments />} />
+                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/register" element={<Navigate to="/login" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
@@ -125,4 +146,3 @@ function App() {
 }
 
 export default App;
-

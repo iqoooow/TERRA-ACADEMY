@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Pencil, Trash2, X, Users, UserPlus, Download, Zap, ShieldCheck, Heart, LayoutGrid, Check, Copy, ArrowUpRight, RefreshCw, ChevronLeft, ChevronRight, Link2, Loader2 } from 'lucide-react';
+import { Search, Pencil, Trash2, X, Users, UserPlus, Download, Zap, ShieldCheck, Heart, LayoutGrid, ArrowUpRight, RefreshCw, ChevronLeft, ChevronRight, Link2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import CreateUserModal from '../users/CreateUserModal';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -9,6 +11,8 @@ import EmptyState from '../../../components/ui/EmptyState';
 import { format } from 'date-fns';
 
 const ParentList = () => {
+    const navigate = useNavigate();
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [parents, setParents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
@@ -122,10 +126,6 @@ const ParentList = () => {
         setIsFormatModalOpen(true);
     };
 
-    const [showInviteModal, setShowInviteModal] = useState(false);
-    const [inviteLink, setInviteLink] = useState('');
-    const [copied, setCopied] = useState(false);
-
     // "Farzand qo'shish" modal state
     const [linkModal, setLinkModal] = useState(null); // parent object or null
     const [studentSearch, setStudentSearch] = useState('');
@@ -179,27 +179,8 @@ const ParentList = () => {
         }
     };
 
-    const generateParentCode = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = 'PAR-';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    };
-
     const handleAdd = () => {
-        const code = generateParentCode();
-        const link = `${window.location.origin}/register?role=parent&code=${code}`;
-        setInviteLink(link);
-        setShowInviteModal(true);
-    };
-
-    const copyInviteLink = () => {
-        navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        toast.success("Havola nusxalandi!");
-        setTimeout(() => setCopied(false), 2000);
+        setShowCreateModal(true);
     };
 
     const handleSubmit = async (e) => {
@@ -327,7 +308,7 @@ const ParentList = () => {
                 <div className="space-y-4">
                     <Table headers={['Vasiy F.I.O', 'Telefoniya', 'Akreditatsiya', 'Amallar']}>
                         {parents.map((p) => (
-                            <TableRow key={p.id} className="group/row">
+                            <TableRow key={p.id} className="group/row cursor-pointer" onClick={() => navigate(`/admin/parents/${p.id}`)}>
                                 <TableCell>
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center text-orange-700 font-black shadow-inner group-hover/row:scale-110 transition-transform">
@@ -623,64 +604,14 @@ const ParentList = () => {
                 )}
             </AnimatePresence>
 
-            {/* Invite Modal (Antigravity Level UX) */}
+            {/* Create Parent Modal */}
             <AnimatePresence>
-                {showInviteModal && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
-                            onClick={() => setShowInviteModal(false)}
-                        />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, rotateX: 20 }}
-                            animate={{ scale: 1, opacity: 1, rotateX: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, rotateX: 20 }}
-                            className="bg-white rounded-[3rem] p-12 w-full max-w-md relative z-10 shadow-[0_30px_100px_rgba(0,0,0,0.3)] border border-white/20"
-                        >
-                            <div className="text-center mb-8">
-                                <div className="w-20 h-20 bg-orange-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-orange-600 shadow-inner">
-                                    <Users size={40} />
-                                </div>
-                                <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">Vasiy <span className="text-orange-600 not-italic">Invite</span></h2>
-                                <p className="text-slate-500 mt-2 font-medium">Ushbu kodi va havolani ota-onaga yuboring</p>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 relative group/code overflow-hidden">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover/code:opacity-100 transition-opacity"></div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 text-center relative z-10">Vasiy kodi</p>
-                                    <p className="text-4xl font-mono font-black text-slate-900 text-center tracking-[0.3em] relative z-10">
-                                        {inviteLink.split('code=')[1]}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Reg-Link (Dinamik)</label>
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-bold text-slate-400 truncate font-mono">
-                                            {inviteLink}
-                                        </div>
-                                        <button
-                                            onClick={copyInviteLink}
-                                            className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-orange-600 transition-all shadow-lg active:scale-90"
-                                        >
-                                            {copied ? <Check size={20} className="text-emerald-400" /> : <Copy size={20} />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => setShowInviteModal(false)}
-                                    className="w-full py-5 bg-slate-100 text-slate-900 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-[10px]"
-                                >
-                                    Amallar bajarildi
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
+                {showCreateModal && (
+                    <CreateUserModal
+                        role="parent"
+                        onSuccess={() => fetchParents(currentPage)}
+                        onClose={() => setShowCreateModal(false)}
+                    />
                 )}
             </AnimatePresence>
         </div>

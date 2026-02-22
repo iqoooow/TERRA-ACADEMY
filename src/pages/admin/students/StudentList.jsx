@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Search, Pencil, Trash2, Download, UserPlus, GraduationCap, Copy, Calendar, Phone, ShieldCheck, Activity, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Search, Pencil, Trash2, Download, UserPlus, GraduationCap, Calendar, Phone, ShieldCheck, Activity, ChevronLeft, ChevronRight, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../../components/ui/EmptyState';
+import CreateUserModal from '../users/CreateUserModal';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
 const StudentList = () => {
+    const navigate = useNavigate();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingStudent, setEditingStudent] = useState(null);
     const [formData, setFormData] = useState({
         first_name: '',
@@ -94,31 +98,8 @@ const StudentList = () => {
         setIsFormatModalOpen(true);
     };
 
-    const [showInviteModal, setShowInviteModal] = useState(false);
-    const [inviteLink, setInviteLink] = useState('');
-
-    const generateStudentCode = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = 'STU-';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    };
-
     const handleAdd = () => {
-        const code = generateStudentCode();
-        const link = `${window.location.origin}/register?role=student&code=${code}`;
-        setInviteLink(link);
-        setShowInviteModal(true);
-    };
-
-    const copyInviteLink = () => {
-        navigator.clipboard.writeText(inviteLink);
-        toast.success("Havola nusxalandi!", {
-            icon: '🔗',
-            style: { borderRadius: '15px', background: '#333', color: '#fff' }
-        });
+        setShowCreateModal(true);
     };
 
     const handleSubmit = async (e) => {
@@ -297,7 +278,8 @@ const StudentList = () => {
                                     initial={{ opacity: 0, scale: 0.98, y: 10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     transition={{ delay: idx * 0.05 }}
-                                    className="p-3 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 hover:bg-slate-50 transition-all duration-500 group"
+                                    className="p-3 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 hover:bg-slate-50 transition-all duration-500 group cursor-pointer"
+                                    onClick={() => navigate(`/admin/students/${student.id}`)}
                                 >
                                     <div className="grid grid-cols-6 items-center">
                                         <div className="col-span-2 flex items-center gap-4 pl-6">
@@ -334,14 +316,23 @@ const StudentList = () => {
                                         </div>
                                         <div className="col-span-1 pr-6 flex justify-end gap-2">
                                             <button
-                                                onClick={() => handleEdit(student)}
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/admin/students/${student.id}`); }}
                                                 className="w-11 h-11 bg-white text-slate-400 hover:bg-blue-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
+                                                title="Profilni ko'rish"
+                                            >
+                                                <ArrowUpRight size={18} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleEdit(student); }}
+                                                className="w-11 h-11 bg-white text-slate-400 hover:bg-indigo-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
+                                                title="Tahrirlash"
                                             >
                                                 <Pencil size={18} />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(student.id)}
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }}
                                                 className="w-11 h-11 bg-white text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
+                                                title="O'chirish"
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -379,67 +370,14 @@ const StudentList = () => {
                 </div>
             )}
 
-            {/* Invite Modal (Industrial Grade) */}
+            {/* Create User Modal */}
             <AnimatePresence>
-                {showInviteModal && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xl"
-                            onClick={() => setShowInviteModal(false)}
-                        />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, rotateX: 20 }}
-                            animate={{ scale: 1, opacity: 1, rotateX: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, rotateX: 20 }}
-                            className="bg-white rounded-[3.5rem] p-12 w-full max-w-md relative z-10 shadow-[0_50px_100px_rgba(0,0,0,0.4)] border border-white/20 overflow-hidden"
-                        >
-                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500"></div>
-
-                            <div className="text-center mb-10">
-                                <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 text-blue-600 shadow-inner border border-blue-100">
-                                    <UserPlus size={48} />
-                                </div>
-                                <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">O'quvchi Taklifi</h2>
-                                <p className="text-slate-400 mt-2 font-bold tracking-wide">Yangi talentni tizimga jalb qiling</p>
-                            </div>
-
-                            <div className="space-y-8">
-                                <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 shadow-inner text-center group cursor-pointer" onClick={copyInviteLink}>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Unikal Taklif Kodi</p>
-                                    <p className="text-5xl font-mono font-black text-blue-600 tracking-[0.1em] group-hover:scale-105 transition-transform">
-                                        {inviteLink.split('code=')[1]}
-                                    </p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 block">Ro'yxatdan o'tish havolasi</label>
-                                    <div className="flex gap-3">
-                                        <input
-                                            readOnly
-                                            value={inviteLink}
-                                            className="w-full px-6 py-5 bg-slate-50 border-none rounded-2xl text-[10px] font-black text-slate-500 outline-none"
-                                        />
-                                        <button
-                                            onClick={copyInviteLink}
-                                            className="p-5 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all shadow-2xl hover:scale-110 active:scale-95"
-                                        >
-                                            <Copy size={24} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => setShowInviteModal(false)}
-                                    className="w-full py-6 bg-slate-100 text-slate-900 font-black rounded-3xl hover:bg-slate-200 transition-all uppercase tracking-[0.2em] text-[10px]"
-                                >
-                                    Faoliyatni davom ettirish
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
+                {showCreateModal && (
+                    <CreateUserModal
+                        role="student"
+                        onSuccess={() => fetchStudents(currentPage)}
+                        onClose={() => setShowCreateModal(false)}
+                    />
                 )}
             </AnimatePresence>
 

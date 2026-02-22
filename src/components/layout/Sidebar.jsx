@@ -53,7 +53,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
     const getLinks = (userRole) => {
         const adminLinks = [
             { name: 'Asosiy sahifa', path: '/admin/dashboard', icon: LayoutDashboard },
-            { name: 'Arizalar', path: '/admin/registration-requests', icon: Bell },
+            { name: 'Bog\'lanishlar', path: '/admin/registration-requests', icon: Bell },
             {
                 name: 'Foydalanuvchilar',
                 icon: UsersRound,
@@ -71,6 +71,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Davomat', path: '/admin/attendance', icon: CalendarCheck },
             { name: 'Baholar', path: '/admin/grades', icon: PieChart },
             { name: "Oylik to'lovlar", path: '/admin/payments', icon: CreditCard },
+            { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
         const teacherLinks = [
@@ -79,6 +80,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Imtihonlar', path: '/teacher/exams', icon: FileText },
             { name: 'Jurnal', path: '/teacher/grades', icon: GraduationCap },
             { name: 'Davomat', path: '/teacher/attendance', icon: CalendarCheck },
+            { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
         const studentLinks = [
@@ -86,12 +88,14 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Kurslarim', path: '/student/courses', icon: BookOpen },
             { name: 'Baholarim', path: '/student/grades', icon: GraduationCap },
             { name: 'Dars jadvali', path: '/student/schedule', icon: Calendar },
+            { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
         const parentLinks = [
             { name: 'Kabinet', path: '/parent/dashboard', icon: LayoutDashboard },
             { name: 'Farzandlar', path: '/parent/children', icon: Users },
             { name: "To'lov tarixi", path: '/parent/payments', icon: CreditCard },
+            { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
         switch (userRole) {

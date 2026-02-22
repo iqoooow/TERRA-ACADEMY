@@ -12,17 +12,12 @@ const fetchCache = new Map();
 const fetchProfile = async (u) => {
     if (!u) return null;
 
-    // If we're already fetching for this specific user, return the existing promise
     if (fetchCache.has(u.id)) {
         return fetchCache.get(u.id);
     }
 
-    // Create a new fetch promise for this user
     const fetchPromise = (async () => {
         try {
-
-
-            // 1. Try profiles table
             const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -30,45 +25,45 @@ const fetchProfile = async (u) => {
                 .single();
 
             if (profile) {
-
                 return {
                     ...u,
                     role: profile.role || 'student',
                     status: profile.status || 'approved',
                     name: profile.full_name || profile.first_name || u.email,
+                    isFirstLogin: profile.is_first_login === true,
+                    loginUsername: profile.login_username || null,
                     profileData: profile
                 };
             }
 
-            if (error && error.code !== 'PGRST116') { // PGRST116 is 'not found'
-
+            if (error && error.code !== 'PGRST116') {
+                console.error('fetchProfile error:', error);
             }
 
-            // 2. Try applications table
-            const { data: application, error: appError } = await supabase
+            // Fallback: applications table (legacy path)
+            const { data: application } = await supabase
                 .from('applications')
                 .select('*')
                 .eq('id', u.id)
                 .single();
 
             if (application) {
-
                 return {
                     ...u,
                     role: application.role,
-                    status: application.status || 'pending', // Usually pending or rejected here
+                    status: application.status || 'pending',
                     name: application.full_name || u.email,
+                    isFirstLogin: false,
+                    loginUsername: null,
                     applicationData: application
                 };
             }
 
-            // 3. Last fallback (really shouldn't happen if registration flow is correct)
-
-            return { ...u, role: 'guest', status: 'unknown', name: u.email };
+            return { ...u, role: 'guest', status: 'unknown', name: u.email, isFirstLogin: false, loginUsername: null };
 
         } catch (err) {
             console.error('Unexpected error in fetchProfile:', err);
-            return { ...u, role: 'guest', status: 'error', name: u.email };
+            return { ...u, role: 'guest', status: 'error', name: u.email, isFirstLogin: false, loginUsername: null };
         } finally {
             fetchCache.delete(u.id);
         }
@@ -88,7 +83,6 @@ export const AuthProvider = ({ children }) => {
 
         const initAuth = async () => {
             try {
-                // 1. Get initial session
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (isMounted) {
@@ -96,8 +90,6 @@ export const AuthProvider = ({ children }) => {
                         const enrichedUser = await fetchProfile(session.user);
                         const role = enrichedUser?.role || 'student';
                         const status = enrichedUser?.status || 'pending';
-
-                        // System roles (owner, admin) should be active by default if they exist
                         const isSystemRole = ['owner', 'admin'].includes(role);
 
                         if (!isSystemRole && status !== 'approved') {
@@ -113,7 +105,6 @@ export const AuthProvider = ({ children }) => {
                     setLoading(false);
                 }
 
-                // 2. Set up listener for subsequent changes
                 const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                     if (!isMounted) return;
                     if (event === 'INITIAL_SESSION') return;
@@ -122,7 +113,6 @@ export const AuthProvider = ({ children }) => {
                         const enrichedUser = await fetchProfile(session.user);
                         const role = enrichedUser?.role || 'student';
                         const status = enrichedUser?.status || 'pending';
-
                         const isSystemRole = ['owner', 'admin'].includes(role);
 
                         if (!isSystemRole && status !== 'approved') {
@@ -151,12 +141,8 @@ export const AuthProvider = ({ children }) => {
 
         initAuth();
 
-        // Fallback timeout to prevent stuck loading screen
         const timeout = setTimeout(() => {
-            if (isMounted && loading) {
-
-                setLoading(false);
-            }
+            if (isMounted) setLoading(false);
         }, 10000);
 
         return () => {
@@ -166,16 +152,20 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
-    const login = async (email, password) => {
+    // Login with username (auto-appends @terra.academy if no @ present)
+    const login = async (usernameOrEmail, password) => {
         try {
+            const authEmail = usernameOrEmail.includes('@')
+                ? usernameOrEmail
+                : `${usernameOrEmail.trim().toLowerCase()}@terra.academy`;
 
             const { data, error } = await supabase.auth.signInWithPassword({
-                email,
+                email: authEmail,
                 password,
             });
 
             if (error) {
-                return { success: false, error: error.message };
+                return { success: false, error: "Login yoki parol noto'g'ri" };
             }
 
             const enriched = await fetchProfile(data.user);
@@ -187,42 +177,36 @@ export const AuthProvider = ({ children }) => {
                 await supabase.auth.signOut();
                 fetchCache.delete(data.user?.id);
                 if (status === 'rejected') {
-                    return { success: false, error: 'Arizangiz rad etilgan. Batafsil ma\'lumot uchun administratorga murojaat qiling.' };
+                    return { success: false, error: 'Hisobingiz bloklangan. Administrator bilan bog\'laning.' };
                 }
-                return { success: false, error: 'Arizangiz hali tasdiqlanmagan. Administrator tasdiqlaguncha akkauntga kira olmaysiz.' };
+                return { success: false, error: 'Hisobingiz hali faollashtrilmagan.' };
             }
 
-
             setUser(enriched);
-            return { success: true, role, status: 'approved' };
+            return {
+                success: true,
+                role,
+                isFirstLogin: enriched?.isFirstLogin === true
+            };
         } catch (err) {
             console.error('Unexpected login error:', err);
-            return { success: false, error: 'Tizimga kirishda kutilmagan xatolik yuz berdi.' };
+            return { success: false, error: 'Tizimga kirishda xatolik yuz berdi.' };
         }
     };
 
-    const register = async (email, password, metadata) => {
-        try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: metadata
-                }
-            });
-
-            if (error) return { success: false, error: error.message };
-            return { success: true, user: data.user };
-        } catch (err) {
-            return { success: false, error: err.message };
-        }
-    };
+    // Re-fetch profile from DB and update user state (called after first-login setup, settings changes)
+    const refreshProfile = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        fetchCache.delete(session.user.id);
+        const enriched = await fetchProfile(session.user);
+        setUser(enriched);
+    }, []);
 
     const logout = async () => {
         try {
             await supabase.auth.signOut();
             setUser(null);
-            // Clear the fetch cache on logout
             fetchCache.clear();
         } catch (err) {
             console.error('Logout error:', err);
@@ -232,18 +216,14 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         login,
-        register,
         logout,
+        refreshProfile,
         loading
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {loading ? (
-                <LoadingScreen />
-            ) : (
-                children
-            )}
+            {loading ? <LoadingScreen /> : children}
         </AuthContext.Provider>
     );
 };
