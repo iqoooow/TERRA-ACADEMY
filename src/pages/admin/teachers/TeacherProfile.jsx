@@ -35,7 +35,7 @@ const InfoRow = ({ label, value, mono = false }) => (
 const StatusBadge = ({ status }) => {
     const cfg = {
         approved: { label: 'Faol', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-        pending:  { label: 'Kutmoqda', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+        pending: { label: 'Kutmoqda', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
         rejected: { label: 'Bloklangan', cls: 'bg-rose-100 text-rose-700 border-rose-200' },
     };
     const c = cfg[status] || cfg.pending;
@@ -97,12 +97,20 @@ const TeacherProfile = () => {
 
     const handleResetPassword = async () => {
         if (!window.confirm("Parolni 'terraAcademy' ga qaytarmoqchimisiz?")) return;
+        if (!supabaseAdmin) {
+            toast.error('Admin client mavjud emas. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo\'shing.');
+            return;
+        }
         setActionLoading(true);
         try {
-            await supabaseAdmin.auth.admin.updateUserById(id, { password: 'terraAcademy' });
-            toast.success("Parol qaytarildi");
-        } catch (err) { toast.error(err.message); }
-        finally { setActionLoading(false); }
+            const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: 'terraAcademy' });
+            if (error) throw error;
+            toast.success("Parol 'terraAcademy' ga qaytarildi");
+        } catch (err) {
+            toast.error('Xatolik: ' + err.message);
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     const handleSaveEdit = async (e) => {
@@ -200,11 +208,10 @@ const TeacherProfile = () => {
                                 <Key size={14} /> Parol tiklash
                             </button>
                             <button onClick={handleToggleBlock} disabled={actionLoading}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 border ${
-                                    profile.status === 'approved'
+                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 border ${profile.status === 'approved'
                                         ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/30 text-rose-300'
                                         : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300'
-                                }`}>
+                                    }`}>
                                 {profile.status === 'approved' ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
                                 {profile.status === 'approved' ? 'Bloklash' : 'Faollashtirish'}
                             </button>
@@ -302,11 +309,10 @@ const TeacherProfile = () => {
                                                 {g.profiles?.full_name} • {g.grade_type} • {g.date ? format(new Date(g.date + 'T12:00:00'), 'dd.MM.yyyy') : '—'}
                                             </p>
                                         </div>
-                                        <div className={`px-3 py-1.5 rounded-xl font-black text-sm ${
-                                            parseFloat(g.score) >= 90 ? 'bg-emerald-100 text-emerald-700'
-                                            : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-rose-100 text-rose-700'
-                                        }`}>
+                                        <div className={`px-3 py-1.5 rounded-xl font-black text-sm ${parseFloat(g.score) >= 90 ? 'bg-emerald-100 text-emerald-700'
+                                                : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-rose-100 text-rose-700'
+                                            }`}>
                                             {g.score}%
                                         </div>
                                     </div>

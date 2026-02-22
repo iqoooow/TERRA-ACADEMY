@@ -22,22 +22,23 @@ const FinanceList = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
+    // Form state for adding a manual transaction via monthly_payments
     const [formData, setFormData] = useState({
         student_id: '',
         amount: '',
-        type: 'tuition',
-        status: 'paid',
-        date: new Date().toISOString().split('T')[0]
+        method: 'cash',           // payment_transactions.method
+        note: '',
+        payment_month: new Date().toISOString().slice(0, 7), // 'YYYY-MM'
     });
 
     useEffect(() => {
         fetchFinance();
         fetchStudents();
 
+        // Listen to both tables for real-time freshness
         const channel = supabase.channel('finance-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
-                fetchFinance();
-            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_transactions' }, fetchFinance)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_payments' }, fetchFinance)
             .subscribe();
 
         return () => supabase.removeChannel(channel);
@@ -46,50 +47,71 @@ const FinanceList = () => {
     const fetchFinance = async () => {
         setLoading(true);
         try {
+            // Fetch payment_transactions joined with monthly_payments (for student_id + month + status)
+            // and then profiles (for student name) via monthly_payments.student_id
             const { data, error } = await supabase
-                .from('payments')
+                .from('payment_transactions')
                 .select(`
-                    *,
-                    profiles (full_name, first_name, last_name)
+                    id,
+                    amount,
+                    method,
+                    note,
+                    created_at,
+                    monthly_payments (
+                        id,
+                        student_id,
+                        payment_month,
+                        status,
+                        profiles:student_id ( full_name )
+                    )
                 `)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(200);
 
             if (error) throw error;
 
-            const typeLabels = {
-                'tuition': 'Ta\'lim',
-                'books': 'Kitoblar',
-                'materials': 'Materiallar',
-                'other': 'Boshqa'
+            const methodLabels = {
+                cash: 'Naqd',
+                card: 'Karta',
+                transfer: "O'tkazma",
+                online: 'Online',
             };
 
-            const formattedTrx = (data || []).map(t => ({
-                id: t.id,
-                shortId: `TRX-${String(t.id).slice(-8)}`,
-                student: t.profiles?.full_name || `${t.profiles?.first_name || ''} ${t.profiles?.last_name || ''}`.trim() || 'Noma\'lum',
-                avatar: null,
-                date: t.date ? format(new Date(t.date), 'dd MMM, yyyy', { locale: uz }) : '-',
-                rawDate: t.date,
-                amount: Number(t.amount || 0),
-                type: t.type || 'other',
-                typeLabel: typeLabels[t.type] || t.type || 'Boshqa',
-                status: t.status,
-                color: t.status === 'paid' ? 'emerald' : t.status === 'pending' ? 'amber' : 'rose'
-            }));
+            const formattedTrx = (data || []).map(t => {
+                const mp = t.monthly_payments;
+                const studentName = mp?.profiles?.full_name || 'Noma\'lum';
+                const monthStr = mp?.payment_month
+                    ? format(new Date(mp.payment_month), 'MMM yyyy', { locale: uz })
+                    : '-';
+                return {
+                    id: t.id,
+                    // last 8 chars of UUID
+                    shortId: `TRX-${t.id.slice(-8).toUpperCase()}`,
+                    student: studentName,
+                    date: format(new Date(t.created_at), 'dd MMM, yyyy', { locale: uz }),
+                    month: monthStr,
+                    amount: Number(t.amount || 0),
+                    method: t.method,
+                    methodLabel: methodLabels[t.method] || t.method,
+                    note: t.note || '',
+                    // payment status comes from the parent monthly_payment record
+                    status: mp?.status || 'paid',
+                };
+            });
 
             setTransactions(formattedTrx);
 
-            const paidTransactions = (data || []).filter(t => t.status === 'paid');
-            const totalRev = paidTransactions.reduce((sum, curr) => sum + Number(curr.amount), 0);
-            const pendingRev = (data || []).filter(t => t.status === 'pending').reduce((sum, curr) => sum + Number(curr.amount), 0);
-            // Average over paid transactions only — dividing by all transactions was incorrect
-            const avgTrx = paidTransactions.length ? (totalRev / paidTransactions.length) : 0;
+            // Stats: sum all transaction amounts (every tx is a real payment)
+            const totalRev = formattedTrx.reduce((sum, t) => sum + t.amount, 0);
+            // Pending = monthly_payments where status is still 'pending' or 'overdue'
+            const { data: pendingData } = await supabase
+                .from('monthly_payments')
+                .select('final_amount')
+                .in('status', ['pending', 'overdue']);
+            const pendingRev = (pendingData || []).reduce((sum, mp) => sum + Number(mp.final_amount || 0), 0);
+            const avgTrx = formattedTrx.length ? totalRev / formattedTrx.length : 0;
 
-            setStats({
-                total: totalRev,
-                pending: pendingRev,
-                avg: avgTrx
-            });
+            setStats({ total: totalRev, pending: pendingRev, avg: avgTrx });
 
         } catch (err) {
             console.error('Error fetching finance:', err);
@@ -150,47 +172,71 @@ const FinanceList = () => {
         toast.success("Hisobot yuklab olindi");
     };
 
+    // Delete a single payment_transaction (not the monthly_payment record itself)
     const handleDeletePayment = async (e, id) => {
         e.stopPropagation();
-        if (!window.confirm("Haqiqatan ham bu to'lovni o'chirmoqchimisiz?")) return;
+        if (!window.confirm("Haqiqatan ham bu tranzaksiyani o'chirmoqchimisiz? Bu oylik to'lov hisobini qayta hisoblaydi.")) return;
 
         setDeletingId(id);
         try {
-            const { error } = await supabase.from('payments').delete().eq('id', id);
+            const { error } = await supabase.from('payment_transactions').delete().eq('id', id);
             if (error) throw error;
-            toast.success("To'lov o'chirildi");
+            toast.success("Tranzaksiya o'chirildi");
+            fetchFinance(); // refresh stats
         } catch (err) {
-            toast.error("O'chirishda xatolik");
+            toast.error("O'chirishda xatolik: " + err.message);
         } finally {
             setDeletingId(null);
         }
     };
 
+    /**
+     * Manual payment entry flow:
+     * 1. Upsert monthly_payment record for student+month
+     * 2. Insert payment_transaction linked to that monthly_payment
+     * The monthly_payment status trigger (in SQL) will auto-update status.
+     * If no trigger exists, we manually mark status='paid' after insert.
+     */
     const handleAddPayment = async (e) => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            if (!formData.student_id || !formData.amount) throw new Error("Barcha maydonlarni to'ldiring");
+            const { student_id, amount, method, note, payment_month } = formData;
+            if (!student_id || !amount || !payment_month) throw new Error("Barcha majburiy maydonlarni to'ldiring");
 
-            const { error } = await supabase.from('payments').insert([{
-                student_id: formData.student_id,
-                amount: Number(formData.amount),
-                type: formData.type,
-                status: formData.status,
-                date: formData.date
-            }]);
+            const amountNum = Number(amount);
+            // payment_month must be first day of the month (schema constraint)
+            const monthFirstDay = `${payment_month}-01`;
 
-            if (error) throw error;
+            // 1. Upsert monthly_payment record (creates if not exists, ignores if exists)
+            const { data: mpData, error: mpError } = await supabase
+                .from('monthly_payments')
+                .upsert(
+                    [{ student_id, payment_month: monthFirstDay, amount: amountNum, status: 'pending' }],
+                    { onConflict: 'student_id,payment_month', ignoreDuplicates: false }
+                )
+                .select('id')
+                .single();
 
-            toast.success("To'lov muvaffaqiyatli kiritildi");
+            if (mpError) throw mpError;
+
+            // 2. Insert the transaction linked to this monthly_payment
+            const { error: txError } = await supabase
+                .from('payment_transactions')
+                .insert([{ payment_id: mpData.id, amount: amountNum, method, note: note || null }]);
+
+            if (txError) throw txError;
+
+            // 3. Manually mark the monthly_payment as paid (in case there's no trigger)
+            await supabase
+                .from('monthly_payments')
+                .update({ status: 'paid', paid_date: new Date().toISOString(), paid_amount: amountNum })
+                .eq('id', mpData.id);
+
+            toast.success("To'lov muvaffaqiyatli kiritildi!");
             setIsModalOpen(false);
-            setFormData({
-                student_id: '',
-                amount: '',
-                type: 'tuition',
-                status: 'paid',
-                date: new Date().toISOString().split('T')[0]
-            });
+            setFormData({ student_id: '', amount: '', method: 'cash', note: '', payment_month: new Date().toISOString().slice(0, 7) });
+            fetchFinance();
         } catch (err) {
             toast.error(err.message || "Xatolik yuz berdi");
         } finally {
@@ -324,9 +370,9 @@ const FinanceList = () => {
                     <div className="px-10 grid grid-cols-7 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
                         <div className="col-span-1">TRX ID</div>
                         <div className="col-span-2">O'quvchi</div>
-                        <div className="col-span-1">Sana</div>
+                        <div className="col-span-1">Sana / Oy</div>
                         <div className="col-span-1">Summa</div>
-                        <div className="col-span-1 text-center">Xolati</div>
+                        <div className="col-span-1 text-center">Usul</div>
                         <div className="col-span-1 text-right pr-6">Amallar</div>
                     </div>
 
@@ -351,16 +397,17 @@ const FinanceList = () => {
                                         </div>
                                         <div>
                                             <h4 className="font-black text-slate-800 leading-none group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-sm">{trx.student}</h4>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 block flex items-center gap-1.5"
-                                            >
-                                                <Activity size={10} /> {trx.typeLabel}
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 block flex items-center gap-1.5">
+                                                <Activity size={10} /> {trx.month}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="col-span-1">
-                                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                            <Calendar size={14} className="text-slate-300" />
-                                            {trx.date}
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                <Calendar size={12} className="text-slate-300" />
+                                                {trx.date}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="col-span-1">
@@ -369,13 +416,9 @@ const FinanceList = () => {
                                         </div>
                                     </div>
                                     <div className="col-span-1 flex justify-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${trx.status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${trx.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                }`}>
-                                                {trx.status === 'paid' ? 'TO\'LANGAN' : 'KUTILMOQDA'}
-                                            </span>
-                                        </div>
+                                        <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200">
+                                            {trx.methodLabel}
+                                        </span>
                                     </div>
                                     <div className="col-span-1 text-right flex justify-end gap-2 pr-6">
                                         <button
@@ -492,9 +535,10 @@ const FinanceList = () => {
                                 <p className="text-slate-400 font-bold text-sm tracking-wide mt-1">Yangi moliyaviy tranzaksiyani tasdiqlang</p>
                             </div>
 
-                            <form onSubmit={handleAddPayment} className="space-y-6">
+                            <form onSubmit={handleAddPayment} className="space-y-5">
+                                {/* Student */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">O'quvchi</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">O'quvchi *</label>
                                     <select
                                         value={formData.student_id}
                                         onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
@@ -503,49 +547,66 @@ const FinanceList = () => {
                                     >
                                         <option value="">O'quvchini tanlang...</option>
                                         {students.map(s => (
-                                            <option key={s.id} value={s.id}>{s.full_name} ({s.student_code})</option>
+                                            <option key={s.id} value={s.id}>{s.full_name} {s.student_code ? `(${s.student_code})` : ''}</option>
                                         ))}
                                     </select>
                                 </div>
 
+                                {/* Amount */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Summa (UZS)</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Summa (UZS) *</label>
                                     <div className="relative group">
-                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black group-focus-within:text-emerald-500 transition-colors">$</span>
+                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black group-focus-within:text-emerald-500 transition-colors">₴</span>
                                         <input
                                             type="number"
                                             value={formData.amount}
                                             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                             className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all text-xl font-black text-slate-900 placeholder:text-slate-200"
-                                            placeholder="0.00"
+                                            placeholder="0"
+                                            min="1"
                                             required
                                         />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
+                                    {/* Payment method */}
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Turi</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">To'lov usuli *</label>
                                         <select
-                                            value={formData.type}
-                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            value={formData.method}
+                                            onChange={(e) => setFormData({ ...formData, method: e.target.value })}
                                             className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all text-xs font-black text-slate-700 uppercase"
                                         >
-                                            <option value="tuition">Ta'lim</option>
-                                            <option value="books">Kitoblar</option>
-                                            <option value="materials">Materiallar</option>
-                                            <option value="other">Boshqa</option>
+                                            <option value="cash">Naqd</option>
+                                            <option value="card">Karta</option>
+                                            <option value="transfer">O'tkazma</option>
+                                            <option value="online">Online</option>
                                         </select>
                                     </div>
+                                    {/* Payment month */}
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Sana</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">To'lov oyi *</label>
                                         <input
-                                            type="date"
-                                            value={formData.date}
-                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                            type="month"
+                                            value={formData.payment_month}
+                                            onChange={(e) => setFormData({ ...formData, payment_month: e.target.value })}
                                             className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all text-xs font-black text-slate-700 hover:bg-slate-100"
+                                            required
                                         />
                                     </div>
+                                </div>
+
+                                {/* Optional note */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Izoh (ixtiyoriy)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.note}
+                                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                                        className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all text-sm font-bold text-slate-800 placeholder:text-slate-300"
+                                        placeholder="Masalan: yanvar oyi uchun"
+                                    />
                                 </div>
 
                                 <div className="pt-6">

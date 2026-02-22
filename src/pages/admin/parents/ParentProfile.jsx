@@ -157,9 +157,9 @@ const ParentProfile = () => {
             if (parentErr) throw parentErr;
             setParent(parentData);
 
-            // 2. Linked children via parent_student_relations
+            // 2. Linked children via parent_student (correct table name per schema)
             const { data: relations } = await supabase
-                .from('parent_student_relations')
+                .from('parent_student')
                 .select('student_id, relationship_type')
                 .eq('parent_id', id)
                 .eq('status', 'approved');
@@ -177,10 +177,12 @@ const ParentProfile = () => {
 
                 const [profileRes, enrollRes, gradesRes, attendRes, paymentsRes] = await Promise.all([
                     supabase.from('profiles').select('id, full_name, student_code, status').eq('id', studentId).single(),
-                    supabase.from('enrollments').select('group_id, groups(name, subject)').eq('student_id', studentId).eq('status', 'active').limit(1).maybeSingle(),
+                    // enrollments has no 'status' column — fetch all active (filter removed)
+                    supabase.from('enrollments').select('group_id, groups(name, subject_id)').eq('student_id', studentId).limit(1).maybeSingle(),
                     supabase.from('grades').select('score').eq('student_id', studentId),
                     supabase.from('attendance').select('status').eq('student_id', studentId),
-                    supabase.from('payments').select('status').eq('student_id', studentId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+                    // monthly_payments is the correct table (payments table doesn't exist)
+                    supabase.from('monthly_payments').select('status').eq('student_id', studentId).order('payment_month', { ascending: false }).limit(1).maybeSingle(),
                 ]);
 
                 const profile = profileRes.data || {};
@@ -236,6 +238,11 @@ const ParentProfile = () => {
 
     // ── Reset password ─────────────────────────────────────────
     const handleResetPassword = async () => {
+        if (!window.confirm("Parolni 'terraAcademy' ga qaytarmoqchimisiz?")) return;
+        if (!supabaseAdmin) {
+            toast.error('Admin client mavjud emas. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo\'shing.');
+            return;
+        }
         try {
             const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: 'terraAcademy' });
             if (error) throw error;

@@ -36,7 +36,7 @@ const InfoRow = ({ label, value, mono = false }) => (
 const StatusBadge = ({ status }) => {
     const cfg = {
         approved: { label: 'Faol', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-        pending:  { label: 'Kutmoqda', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+        pending: { label: 'Kutmoqda', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
         rejected: { label: 'Bloklangan', cls: 'bg-rose-100 text-rose-700 border-rose-200' },
     };
     const c = cfg[status] || cfg.pending;
@@ -68,9 +68,15 @@ const StudentProfile = () => {
             const [profileRes, enrollRes, gradesRes, attRes, payRes, parentRes] = await Promise.all([
                 supabase.from('profiles').select('*').eq('id', id).single(),
                 supabase.from('enrollments').select('group_id, groups(id, name, subjects(name))').eq('student_id', id),
-                supabase.from('grades').select('id, title, score, grade_type, date, profiles!grades_teacher_id_fkey(full_name)').eq('student_id', id).order('date', { ascending: false }).limit(20),
+                // grades: recorded_by is the correct FK (teacher_id doesn't exist in schema)
+                supabase.from('grades').select('id, title, score, grade_type, date, profiles!grades_recorded_by_fkey(full_name)').eq('student_id', id).order('date', { ascending: false }).limit(20),
                 supabase.from('attendance').select('status').eq('student_id', id),
-                supabase.from('payments').select('*').eq('student_id', id).order('created_at', { ascending: false }).limit(12),
+                // payment_transactions joined via monthly_payments for this student
+                supabase.from('payment_transactions')
+                    .select('id, amount, method, note, created_at, monthly_payments!inner(student_id, payment_month, status)')
+                    .eq('monthly_payments.student_id', id)
+                    .order('created_at', { ascending: false })
+                    .limit(12),
                 supabase.from('parent_student').select('status, relationship_type, profiles!parent_id(id, full_name, phone, login_username)').eq('student_id', id).eq('status', 'approved'),
             ]);
 
@@ -94,7 +100,16 @@ const StudentProfile = () => {
                 late: att.filter(a => a.status === 'late').length,
             });
 
-            setPayments(payRes.data || []);
+            // payment_transactions returns joined rows — flatten for display
+            setPayments((payRes.data || []).map(tx => ({
+                id: tx.id,
+                amount: tx.amount,
+                method: tx.method,
+                description: tx.note,
+                status: tx.monthly_payments?.status || 'paid',
+                month: tx.monthly_payments?.payment_month,
+                created_at: tx.created_at,
+            })));
 
             setParents((parentRes.data || []).map(r => ({
                 ...r.profiles,
@@ -128,9 +143,14 @@ const StudentProfile = () => {
 
     const handleResetPassword = async () => {
         if (!window.confirm("Parolni 'terraAcademy' ga qaytarmoqchimisiz?")) return;
+        if (!supabaseAdmin) {
+            toast.error('Admin client mavjud emas. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo\'shing.');
+            return;
+        }
         setActionLoading(true);
         try {
-            await supabaseAdmin.auth.admin.updateUserById(id, { password: 'terraAcademy' });
+            const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: 'terraAcademy' });
+            if (error) throw error;
             toast.success("Parol 'terraAcademy' ga qaytarildi");
         } catch (err) {
             toast.error('Xatolik: ' + err.message);
@@ -265,11 +285,10 @@ const StudentProfile = () => {
                             <button
                                 onClick={handleToggleBlock}
                                 disabled={actionLoading}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 border ${
-                                    profile.status === 'approved'
+                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 border ${profile.status === 'approved'
                                         ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/30 text-rose-300'
                                         : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300'
-                                }`}
+                                    }`}
                             >
                                 {profile.status === 'approved' ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
                                 {profile.status === 'approved' ? 'Bloklash' : 'Faollashtirish'}
@@ -423,11 +442,10 @@ const StudentProfile = () => {
                                                 {g.grade_type} • {g.date ? format(new Date(g.date + 'T12:00:00'), 'dd.MM.yyyy') : '—'}
                                             </p>
                                         </div>
-                                        <div className={`px-3 py-1.5 rounded-xl font-black text-sm ${
-                                            parseFloat(g.score) >= 90 ? 'bg-emerald-100 text-emerald-700'
-                                            : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-rose-100 text-rose-700'
-                                        }`}>
+                                        <div className={`px-3 py-1.5 rounded-xl font-black text-sm ${parseFloat(g.score) >= 90 ? 'bg-emerald-100 text-emerald-700'
+                                                : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-rose-100 text-rose-700'
+                                            }`}>
                                             {g.score}%
                                         </div>
                                     </div>
@@ -452,11 +470,10 @@ const StudentProfile = () => {
                                             <span className="font-black text-slate-900 text-sm">
                                                 {p.amount ? p.amount.toLocaleString() : '—'} so'm
                                             </span>
-                                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                                                p.status === 'paid' ? 'bg-emerald-100 text-emerald-700'
-                                                : p.status === 'overdue' ? 'bg-rose-100 text-rose-700'
-                                                : 'bg-amber-100 text-amber-700'
-                                            }`}>
+                                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${p.status === 'paid' ? 'bg-emerald-100 text-emerald-700'
+                                                    : p.status === 'overdue' ? 'bg-rose-100 text-rose-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                }`}>
                                                 {p.status === 'paid' ? "To'landi" : p.status === 'overdue' ? 'Muddati o\'tgan' : 'Kutilmoqda'}
                                             </span>
                                         </div>
