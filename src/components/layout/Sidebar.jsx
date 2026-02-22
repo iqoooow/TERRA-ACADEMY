@@ -70,7 +70,6 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Dars jadvali', path: '/admin/schedule', icon: Calendar },
             { name: 'Davomat', path: '/admin/attendance', icon: CalendarCheck },
             { name: 'Baholar', path: '/admin/grades', icon: PieChart },
-            { name: "Oylik to'lovlar", path: '/admin/payments', icon: CreditCard },
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
@@ -88,6 +87,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Kurslarim', path: '/student/courses', icon: BookOpen },
             { name: 'Baholarim', path: '/student/grades', icon: GraduationCap },
             { name: 'Dars jadvali', path: '/student/schedule', icon: Calendar },
+            { name: "To'lovlarim", path: '/student/payments', icon: CreditCard },
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 

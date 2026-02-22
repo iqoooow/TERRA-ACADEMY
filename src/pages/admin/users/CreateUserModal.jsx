@@ -102,6 +102,11 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
             const authEmail = `${loginUsername}@terra.academy`;
 
             // 2. Create Supabase auth user
+            if (!supabaseAdmin) {
+                toast.error('Xatolik: VITE_SUPABASE_SERVICE_ROLE_KEY .env faylida yo\'q. Admin foydalanuvchi yarata olmaydi.');
+                setIsSubmitting(false);
+                return;
+            }
             const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
                 email: authEmail,
                 password: 'terraAcademy',
@@ -131,7 +136,7 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
             const { error: profileError } = await supabase.from('profiles').insert(profileInsert);
             if (profileError) {
                 // Cleanup auth user if profile insert failed
-                await supabaseAdmin.auth.admin.deleteUser(newUserId);
+                if (supabaseAdmin) await supabaseAdmin.auth.admin.deleteUser(newUserId);
                 throw profileError;
             }
 

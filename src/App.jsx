@@ -29,11 +29,10 @@ const ParentProfile = lazy(() => import('./pages/admin/parents/ParentProfile'));
 const RegistrationRequests = lazy(() => import('./pages/admin/RegistrationRequests'));
 const SubjectList = lazy(() => import('./pages/admin/courses/SubjectList'));
 const GroupList = lazy(() => import('./pages/admin/courses/GroupList'));
-const FinanceList = lazy(() => import('./pages/admin/finance/FinanceList'));
+const FinancialCenter = lazy(() => import('./pages/admin/finance/FinancialCenter'));
 const ScheduleList = lazy(() => import('./pages/admin/schedule/ScheduleList'));
 const AttendanceList = lazy(() => import('./pages/admin/attendance/AttendanceList'));
 const GradeList = lazy(() => import('./pages/admin/grades/GradeList'));
-const StudentPayments = lazy(() => import('./pages/admin/finance/StudentPayments'));
 
 // Teacher Pages
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'));
@@ -43,6 +42,7 @@ const TeacherGrades = lazy(() => import('./pages/teacher/TeacherGrades'));
 const TeacherAttendance = lazy(() => import('./pages/teacher/TeacherAttendance'));
 
 // Student Pages
+const StudentPayments = lazy(() => import('./pages/student/StudentPayments'));
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentCourses = lazy(() => import('./pages/student/StudentCourses'));
 const StudentGrades = lazy(() => import('./pages/student/StudentGrades'));
@@ -93,11 +93,11 @@ function App() {
                 <Route path="/admin/parents/:id" element={<ParentProfile />} />
                 <Route path="/admin/subjects" element={<SubjectList />} />
                 <Route path="/admin/groups" element={<GroupList />} />
-                <Route path="/admin/finance" element={<FinanceList />} />
+                <Route path="/admin/finance" element={<FinancialCenter />} />
                 <Route path="/admin/schedule" element={<ScheduleList />} />
                 <Route path="/admin/attendance" element={<AttendanceList />} />
                 <Route path="/admin/grades" element={<GradeList />} />
-                <Route path="/admin/payments" element={<StudentPayments />} />
+                <Route path="/admin/payments" element={<FinancialCenter />} />
                 <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
@@ -121,6 +121,7 @@ function App() {
                 <Route path="/student/courses" element={<StudentCourses />} />
                 <Route path="/student/grades" element={<StudentGrades />} />
                 <Route path="/student/schedule" element={<StudentSchedule />} />
+                <Route path="/student/payments" element={<StudentPayments />} />
                 <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
