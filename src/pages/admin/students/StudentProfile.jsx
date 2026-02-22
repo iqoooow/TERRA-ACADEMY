@@ -69,11 +69,13 @@ const StudentProfile = () => {
                 supabase.from('profiles').select('*').eq('id', id).single(),
                 supabase.from('enrollments').select('group_id, groups(id, name, subjects(name))').eq('student_id', id),
                 // grades: recorded_by is the correct FK (teacher_id doesn't exist in schema)
-                supabase.from('grades').select('id, title, score, grade_type, date, profiles!grades_recorded_by_fkey(full_name)').eq('student_id', id).order('date', { ascending: false }).limit(20),
+                // grades: use recorded_by column for teacher profile join
+                supabase.from('grades').select('id, title, score, grade_type, date, profiles!recorded_by(full_name)').eq('student_id', id).order('date', { ascending: false }).limit(20),
                 supabase.from('attendance').select('status').eq('student_id', id),
                 // payment_transactions joined via monthly_payments for this student
+                // payment_transactions: basic join with monthly_payments
                 supabase.from('payment_transactions')
-                    .select('id, amount, method, note, created_at, monthly_payments!inner(student_id, payment_month, status)')
+                    .select('id, amount, method, note, created_at, monthly_payments(student_id, payment_month, status)')
                     .eq('monthly_payments.student_id', id)
                     .order('created_at', { ascending: false })
                     .limit(12),
@@ -286,8 +288,8 @@ const StudentProfile = () => {
                                 onClick={handleToggleBlock}
                                 disabled={actionLoading}
                                 className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 border ${profile.status === 'approved'
-                                        ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/30 text-rose-300'
-                                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300'
+                                    ? 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/30 text-rose-300'
+                                    : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300'
                                     }`}
                             >
                                 {profile.status === 'approved' ? <ShieldX size={14} /> : <ShieldCheck size={14} />}
@@ -443,8 +445,8 @@ const StudentProfile = () => {
                                             </p>
                                         </div>
                                         <div className={`px-3 py-1.5 rounded-xl font-black text-sm ${parseFloat(g.score) >= 90 ? 'bg-emerald-100 text-emerald-700'
-                                                : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-rose-100 text-rose-700'
+                                            : parseFloat(g.score) >= 70 ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-rose-100 text-rose-700'
                                             }`}>
                                             {g.score}%
                                         </div>
@@ -471,8 +473,8 @@ const StudentProfile = () => {
                                                 {p.amount ? p.amount.toLocaleString() : '—'} so'm
                                             </span>
                                             <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${p.status === 'paid' ? 'bg-emerald-100 text-emerald-700'
-                                                    : p.status === 'overdue' ? 'bg-rose-100 text-rose-700'
-                                                        : 'bg-amber-100 text-amber-700'
+                                                : p.status === 'overdue' ? 'bg-rose-100 text-rose-700'
+                                                    : 'bg-amber-100 text-amber-700'
                                                 }`}>
                                                 {p.status === 'paid' ? "To'landi" : p.status === 'overdue' ? 'Muddati o\'tgan' : 'Kutilmoqda'}
                                             </span>

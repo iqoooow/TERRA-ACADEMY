@@ -62,7 +62,7 @@ const FinanceList = () => {
                         student_id,
                         payment_month,
                         status,
-                        profiles:student_id ( full_name )
+                        profiles ( full_name )
                     )
                 `)
                 .order('created_at', { ascending: false })
