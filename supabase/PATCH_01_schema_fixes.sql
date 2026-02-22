@@ -33,11 +33,34 @@ CREATE INDEX IF NOT EXISTS idx_payment_tx_created_at ON public.payment_transacti
 
 
 -- ============================================================
--- 4. monthly_payments: paid_amount ustun (agar yo'q bo'lsa)
---    FinanceList handleAddPayment paid_amount ni update qiladi.
+-- 4. monthly_payments: ustunlarni majburiy qo'shish
+--    FinanceList.jsx upsert: amount, paid_amount, paid_date fieldlarini
+--    ishlatadi. Agar eski schema bo'lsa bu ustunlar yo'q bo'lishi mumkin.
 -- ============================================================
 ALTER TABLE public.monthly_payments
-    ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12, 2) DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS amount       NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+ALTER TABLE public.monthly_payments
+    ADD COLUMN IF NOT EXISTS paid_amount  NUMERIC(12, 2) DEFAULT 0;
+
+ALTER TABLE public.monthly_payments
+    ADD COLUMN IF NOT EXISTS paid_date    TIMESTAMPTZ;
+
+ALTER TABLE public.monthly_payments
+    ADD COLUMN IF NOT EXISTS discount     NUMERIC(12, 2) DEFAULT 0;
+
+ALTER TABLE public.monthly_payments
+    ADD COLUMN IF NOT EXISTS notes        TEXT;
+
+ALTER TABLE public.monthly_payments
+    ADD COLUMN IF NOT EXISTS due_date     DATE;
+
+-- ============================================================
+-- 5. Schema Cache qayta yuklash (PostgREST)
+--    "Could not find column in schema cache" xatosini tuzatadi.
+--    Bu NOTIFY avtomatik yangilaydi — qo'shimcha harakat shart emas.
+-- ============================================================
+NOTIFY pgrst, 'reload schema';
 
 -- Tasdiqlash
 DO $$
@@ -45,5 +68,6 @@ BEGIN
     RAISE NOTICE '✅ PATCH 01 muvaffaqiyatli qo''llandi.';
     RAISE NOTICE '   + parent_student.relationship_type ustun';
     RAISE NOTICE '   + grades, payment_transactions indekslari';
-    RAISE NOTICE '   + monthly_payments.paid_amount ustun';
+    RAISE NOTICE '   + monthly_payments: amount, paid_amount, paid_date, discount, notes, due_date';
+    RAISE NOTICE '   + PostgREST schema cache qayta yuklandi';
 END $$;
