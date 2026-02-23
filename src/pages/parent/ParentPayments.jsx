@@ -13,12 +13,7 @@ import { uz } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { cn } from '../../utils/cn';
 
-const STATUS_CONFIG = {
-    paid: { label: "To'langan", bg: 'bg-emerald-500', text: 'text-white', icon: CheckCircle2 },
-    partially_paid: { label: 'Qisman', bg: 'bg-blue-500', text: 'text-white', icon: Receipt },
-    overdue: { label: "Muddati o'tgan", bg: 'bg-rose-500', text: 'text-white', icon: AlertCircle },
-    pending: { label: "Kutilmoqda", bg: 'bg-amber-500', text: 'text-white', icon: Wallet },
-};
+import { formatMonthYear, STATUS_CONFIG } from '../../utils/paymentUtils';
 
 const ParentPayments = () => {
     const [searchParams] = useSearchParams();
@@ -52,6 +47,7 @@ const ParentPayments = () => {
                 .from('monthly_payments')
                 .select('*')
                 .eq('student_id', studentId)
+                .order('payment_year', { ascending: false })
                 .order('payment_month', { ascending: false });
 
             // 3. Get Transactions
@@ -93,9 +89,11 @@ const ParentPayments = () => {
         );
     }
 
-    const totalPaid = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    const totalPaid = transactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
     const latestBill = payments[0];
-    const debt = latestBill ? (latestBill.amount - (latestBill.paid_amount || 0)) : 0;
+    const expected = latestBill ? (latestBill.final_amount || latestBill.amount || latestBill.base_amount || 0) : 0;
+    const paid = latestBill ? (latestBill.paid_amount || latestBill.amount_paid || 0) : 0;
+    const debt = expected - paid;
 
     return (
         <div className="space-y-8 animate-fade-in max-w-[1400px] mx-auto pb-20">
@@ -133,7 +131,7 @@ const ParentPayments = () => {
                         </div>
                         <div className="glass-card bg-white/10 border-white/10 backdrop-blur-2xl px-8 py-6 rounded-[2.5rem] min-w-[180px]">
                             <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-2 block">Qarz</span>
-                            <div className="font-black text-rose-400 text-3xl tracking-tighter tabular-nums">{debt.toLocaleString()}</div>
+                            <div className="font-black text-rose-400 text-3xl tracking-tighter tabular-nums">{debt > 0 ? debt.toLocaleString() : 0}</div>
                         </div>
                     </div>
                 </div>
@@ -173,7 +171,7 @@ const ParentPayments = () => {
                                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
                                                     <Calendar size={12} /> {format(new Date(tx.created_at), 'dd MMMM, HH:mm', { locale: uz })}
                                                     <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                                    {tx.method.toUpperCase()}
+                                                    {(tx.method || 'cash').toUpperCase()}
                                                 </div>
                                             </div>
                                         </div>
@@ -199,16 +197,19 @@ const ParentPayments = () => {
                         </h3>
                         <div className="space-y-4">
                             {payments.map((p, i) => {
-                                const pDate = parseISO(p.payment_month);
                                 return (
                                     <div key={p.id} className="flex items-center justify-between p-5 bg-white/5 rounded-3xl border border-white/5 hover:bg-white/10 transition-all">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xs font-black">
-                                                {format(pDate, 'MM')}
+                                                {String(p.payment_month).padStart(2, '0')}
                                             </div>
                                             <div>
-                                                <h4 className="font-black text-sm uppercase tracking-tight">{format(pDate, 'MMMM, yyyy', { locale: uz })}</h4>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reja: {p.amount.toLocaleString()} UZS</p>
+                                                <h4 className="font-black text-sm uppercase tracking-tight">
+                                                    {formatMonthYear(p.payment_month, p.payment_year)}
+                                                </h4>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    Reja: {(p.final_amount || p.amount).toLocaleString()} UZS
+                                                </p>
                                             </div>
                                         </div>
                                         <div className={cn(

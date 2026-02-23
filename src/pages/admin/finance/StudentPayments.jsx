@@ -21,10 +21,10 @@ const PAYMENT_METHODS = [
 ];
 
 const STATUS_CONFIG = {
-    paid:           { label: "To'langan",        bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-    partially_paid: { label: 'Qisman',           bg: 'bg-blue-100',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500' },
-    overdue:        { label: "Muddati o'tgan",   bg: 'bg-rose-100',    text: 'text-rose-700',    border: 'border-rose-200',    dot: 'bg-rose-500 animate-pulse' },
-    pending:        { label: "To'lanmagan",      bg: 'bg-amber-100',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500 animate-pulse' },
+    paid: { label: "To'langan", bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+    partially_paid: { label: 'Qisman', bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+    overdue: { label: "Muddati o'tgan", bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500 animate-pulse' },
+    pending: { label: "To'lanmagan", bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500 animate-pulse' },
 };
 
 const StudentPayments = () => {
@@ -32,16 +32,16 @@ const StudentPayments = () => {
     const [students, setStudents] = useState([]);
     const [payments, setPayments] = useState({});
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-    const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
-    const [searchQuery, setSearchQuery]     = useState('');
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Modal
-    const [isTxModalOpen,  setIsTxModalOpen]  = useState(false);
-    const [activePayment,  setActivePayment]   = useState(null);
+    const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+    const [activePayment, setActivePayment] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
-    const [txAmount,   setTxAmount]   = useState('');
-    const [txMethod,   setTxMethod]   = useState('cash');
-    const [txNote,     setTxNote]     = useState('');
+    const [txAmount, setTxAmount] = useState('');
+    const [txMethod, setTxMethod] = useState('cash');
+    const [txNote, setTxNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => { fetchData(); }, [selectedMonth, selectedYear]);
@@ -81,7 +81,7 @@ const StudentPayments = () => {
                 enrollments: enrollmentMap[s.id] || [],
             })));
 
-            // Step 3: Fetch monthly payments (gracefully — may not exist yet)
+            // Step 3: Fetch monthly payments
             const { data: paymentsData } = await supabase
                 .from('monthly_payments')
                 .select('*')
@@ -103,7 +103,7 @@ const StudentPayments = () => {
         setSelectedStudent(student);
         setActivePayment(payments[student.id] || null);
         const group = student.enrollments?.[0]?.groups;
-        const pay   = payments[student.id];
+        const pay = payments[student.id];
         const remaining = pay ? Number(pay.remaining_amount ?? pay.final_amount ?? group?.price ?? 0) : Number(group?.price ?? 0);
         setTxAmount(remaining > 0 ? String(remaining) : '');
         setTxMethod('cash');
@@ -125,13 +125,13 @@ const StudentPayments = () => {
                 const { data: newPay, error: pErr } = await supabase
                     .from('monthly_payments')
                     .insert({
-                        student_id:    selectedStudent.id,
-                        group_id:      group?.id || null,
+                        student_id: selectedStudent.id,
+                        group_id: group?.id || null,
                         payment_month: Number(selectedMonth),
-                        payment_year:  Number(selectedYear),
-                        base_amount:   Number(group?.price || 0),
-                        amount_paid:   0,
-                        due_date:      new Date(selectedYear, selectedMonth - 1, 10).toISOString(),
+                        payment_year: Number(selectedYear),
+                        base_amount: Number(group?.price || 0),
+                        amount_paid: 0,
+                        due_date: new Date(selectedYear, selectedMonth - 1, 10).toISOString(),
                     })
                     .select()
                     .single();
@@ -142,10 +142,10 @@ const StudentPayments = () => {
             const { error: txErr } = await supabase
                 .from('payment_transactions')
                 .insert({
-                    payment_id:   paymentId,
-                    amount:       Number(txAmount),
-                    method:       txMethod,
-                    note:         txNote || null,
+                    payment_id: paymentId,
+                    amount: Number(txAmount),
+                    method: txMethod,
+                    note: txNote || null,
                     performed_by: currentUser.id,
                 });
             if (txErr) throw txErr;
@@ -162,21 +162,21 @@ const StudentPayments = () => {
 
     const handleExport = () => {
         const rows = filteredStudents.map(student => {
-            const pay   = payments[student.id];
+            const pay = payments[student.id];
             const group = student.enrollments?.[0]?.groups;
-            const expected  = Number(pay?.final_amount   || group?.price || 0);
-            const paid      = Number(pay?.amount_paid    || 0);
+            const expected = Number(pay?.final_amount || group?.price || 0);
+            const paid = Number(pay?.amount_paid || 0);
             const remaining = Number(pay?.remaining_amount ?? expected);
-            const status    = STATUS_CONFIG[pay?.status || 'pending']?.label || "To'lanmagan";
+            const status = STATUS_CONFIG[pay?.status || 'pending']?.label || "To'lanmagan";
             return [student.full_name, student.phone || '-', group?.name || 'Guruhsiz',
-                    expected, paid, remaining, status].join(',');
+                expected, paid, remaining, status].join(',');
         });
         const csv = ["F.I.O,Telefon,Guruh,Hisob,To'landi,Qoldiq,Holat", ...rows].join('\n');
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url  = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href     = url;
-        link.download = `tolovlar_${MONTHS[selectedMonth-1]}_${selectedYear}.csv`;
+        link.href = url;
+        link.download = `tolovlar_${MONTHS[selectedMonth - 1]}_${selectedYear}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -187,18 +187,20 @@ const StudentPayments = () => {
     const stats = useMemo(() => {
         const vals = Object.values(payments);
         const totalExpected = vals.reduce((a, p) => a + Number(p.final_amount || p.base_amount || 0), 0);
-        const totalReceived = vals.reduce((a, p) => a + Number(p.amount_paid  || 0), 0);
-        const paidCount     = vals.filter(p => p.status === 'paid').length;
-        const overdueCount  = vals.filter(p => p.status === 'overdue').length;
-        const percent       = totalExpected > 0 ? Math.round((totalReceived / totalExpected) * 100) : 0;
-        return { totalExpected, totalReceived, paidCount, overdueCount, percent,
-                 blockedCount: students.filter(s => s.finance_status === 'blocked').length };
+        const totalReceived = vals.reduce((a, p) => a + Number(p.amount_paid || 0), 0);
+        const paidCount = vals.filter(p => p.status === 'paid').length;
+        const overdueCount = vals.filter(p => p.status === 'overdue').length;
+        const percent = totalExpected > 0 ? Math.round((totalReceived / totalExpected) * 100) : 0;
+        return {
+            totalExpected, totalReceived, paidCount, overdueCount, percent,
+            blockedCount: students.filter(s => s.finance_status === 'blocked').length
+        };
     }, [payments, students]);
 
     const filteredStudents = useMemo(() =>
         students.filter(s => s.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             s.phone?.includes(searchQuery)),
-    [students, searchQuery]);
+            s.phone?.includes(searchQuery)),
+        [students, searchQuery]);
 
     const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
@@ -249,10 +251,10 @@ const StudentPayments = () => {
             {/* ── Stats ── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Jami O'quvchilar", value: students.length,     icon: Users,       color: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-50',    text: 'text-blue-700'   },
-                    { label: "To'lagan",          value: stats.paidCount,    icon: CheckCircle2, color: 'from-emerald-500 to-teal-600',  bg: 'bg-emerald-50', text: 'text-emerald-700' },
-                    { label: "Muddati o'tgan",    value: stats.overdueCount, icon: AlertCircle, color: 'from-rose-500 to-pink-600',     bg: 'bg-rose-50',    text: 'text-rose-700'   },
-                    { label: "Bloklangan",        value: stats.blockedCount, icon: ShieldAlert,  color: 'from-amber-500 to-orange-600',  bg: 'bg-amber-50',   text: 'text-amber-700'  },
+                    { label: "Jami O'quvchilar", value: students.length, icon: Users, color: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50', text: 'text-blue-700' },
+                    { label: "To'lagan", value: stats.paidCount, icon: CheckCircle2, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+                    { label: "Muddati o'tgan", value: stats.overdueCount, icon: AlertCircle, color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', text: 'text-rose-700' },
+                    { label: "Bloklangan", value: stats.blockedCount, icon: ShieldAlert, color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-700' },
                 ].map((s, i) => (
                     <motion.div
                         key={i}
@@ -349,14 +351,14 @@ const StudentPayments = () => {
 
                     <AnimatePresence mode="popLayout">
                         {filteredStudents.map((student, idx) => {
-                            const pay       = payments[student.id];
-                            const group     = student.enrollments?.[0]?.groups;
-                            const expected  = Number(pay?.final_amount  || pay?.base_amount || group?.price || 0);
-                            const paid      = Number(pay?.amount_paid   || 0);
+                            const pay = payments[student.id];
+                            const group = student.enrollments?.[0]?.groups;
+                            const expected = Number(pay?.final_amount || pay?.base_amount || group?.price || 0);
+                            const paid = Number(pay?.amount_paid || 0);
                             const remaining = Number(pay?.remaining_amount ?? (expected - paid));
-                            const pct       = expected > 0 ? Math.round((paid / expected) * 100) : 0;
+                            const pct = expected > 0 ? Math.round((paid / expected) * 100) : 0;
                             const statusKey = pay?.status || 'pending';
-                            const cfg       = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
+                            const cfg = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
                             const isBlocked = student.finance_status === 'blocked';
 
                             return (
@@ -373,8 +375,8 @@ const StudentPayments = () => {
                                         <div className={cn(
                                             "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-lg shadow-md shrink-0 group-hover:scale-110 transition-transform",
                                             isBlocked ? 'bg-gradient-to-br from-rose-500 to-pink-600' :
-                                            statusKey === 'paid' ? 'bg-gradient-to-br from-emerald-500 to-teal-600' :
-                                            'bg-gradient-to-br from-indigo-500 to-violet-600'
+                                                statusKey === 'paid' ? 'bg-gradient-to-br from-emerald-500 to-teal-600' :
+                                                    'bg-gradient-to-br from-indigo-500 to-violet-600'
                                         )}>
                                             {(student.full_name || 'U').charAt(0).toUpperCase()}
                                         </div>
@@ -433,9 +435,9 @@ const StudentPayments = () => {
                                                 className={cn(
                                                     "h-full rounded-full",
                                                     pct >= 100 ? "bg-gradient-to-r from-emerald-500 to-teal-500" :
-                                                    pct > 50   ? "bg-gradient-to-r from-blue-500 to-indigo-500" :
-                                                    pct > 0    ? "bg-gradient-to-r from-amber-500 to-orange-500" :
-                                                                 "bg-slate-200"
+                                                        pct > 50 ? "bg-gradient-to-r from-blue-500 to-indigo-500" :
+                                                            pct > 0 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
+                                                                "bg-slate-200"
                                                 )}
                                             />
                                         </div>
@@ -595,7 +597,7 @@ const StudentPayments = () => {
                                         <div className="flex gap-2 mt-2">
                                             {[25, 50, 75, 100].map(p => {
                                                 const base = Number(activePayment.final_amount || activePayment.base_amount || 0);
-                                                const val  = Math.round(base * p / 100);
+                                                const val = Math.round(base * p / 100);
                                                 return (
                                                     <button
                                                         key={p} type="button"

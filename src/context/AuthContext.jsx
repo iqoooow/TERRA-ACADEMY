@@ -83,7 +83,17 @@ export const AuthProvider = ({ children }) => {
 
         const initAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+                if (sessionError) {
+                    // Handle specific error: Invalid Refresh Token
+                    if (sessionError.message?.toLowerCase().includes('refresh token')) {
+                        console.warn('Invalid refresh token detected. Signing out...');
+                        await supabase.auth.signOut();
+                        if (isMounted) setUser(null);
+                    }
+                    throw sessionError;
+                }
 
                 if (isMounted) {
                     if (session?.user) {
@@ -102,41 +112,53 @@ export const AuthProvider = ({ children }) => {
                     } else {
                         setUser(null);
                     }
-                    setLoading(false);
                 }
-
-                const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (!isMounted) return;
-                    if (event === 'INITIAL_SESSION') return;
-
-                    if (session?.user) {
-                        const enrichedUser = await fetchProfile(session.user);
-                        const role = enrichedUser?.role || 'student';
-                        const status = enrichedUser?.status || 'pending';
-                        const isSystemRole = ['owner', 'admin'].includes(role);
-
-                        if (!isSystemRole && status !== 'approved') {
-                            await supabase.auth.signOut();
-                            fetchCache.delete(session.user?.id);
-                            if (isMounted) setUser(null);
-                        } else if (isMounted) {
-                            setUser(enrichedUser);
-                        }
-                    } else {
-                        if (isMounted) {
-                            setUser(null);
-                            fetchCache.clear();
-                        }
-                    }
-                    if (isMounted) setLoading(false);
-                });
-
-                authSubscription = subscription;
-
             } catch (err) {
                 console.error('Auth initialization error:', err);
+                // Clear user on auth error to prevent stale state
+                if (isMounted) {
+                    setUser(null);
+                    setLoading(false);
+                }
+            } finally {
                 if (isMounted) setLoading(false);
             }
+
+            if (!isMounted) return;
+
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (!isMounted) return;
+
+                // Handle TOKEN_REFRESHED error or SIGNED_OUT
+                if (event === 'SIGNED_OUT') {
+                    setUser(null);
+                    fetchCache.clear();
+                    return;
+                }
+
+                if (session?.user) {
+                    const enrichedUser = await fetchProfile(session.user);
+                    const role = enrichedUser?.role || 'student';
+                    const status = enrichedUser?.status || 'pending';
+                    const isSystemRole = ['owner', 'admin'].includes(role);
+
+                    if (!isSystemRole && status !== 'approved') {
+                        await supabase.auth.signOut();
+                        fetchCache.delete(session.user?.id);
+                        if (isMounted) setUser(null);
+                    } else if (isMounted) {
+                        setUser(enrichedUser);
+                    }
+                } else {
+                    if (isMounted) {
+                        setUser(null);
+                        fetchCache.clear();
+                    }
+                }
+                if (isMounted) setLoading(false);
+            });
+
+            authSubscription = subscription;
         };
 
         initAuth();

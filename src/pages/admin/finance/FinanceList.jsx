@@ -5,6 +5,7 @@ import StatsCard from '../../../components/ui/StatsCard';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { formatMonthYear } from '../../../utils/paymentUtils';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
@@ -61,6 +62,7 @@ const FinanceList = () => {
                         id,
                         student_id,
                         payment_month,
+                        payment_year,
                         status,
                         profiles!student_id ( full_name )
                     )
@@ -80,8 +82,8 @@ const FinanceList = () => {
             const formattedTrx = (data || []).map(t => {
                 const mp = t.monthly_payments;
                 const studentName = mp?.profiles?.full_name || 'Noma\'lum';
-                const monthStr = mp?.payment_month
-                    ? format(new Date(mp.payment_month), 'MMM yyyy', { locale: uz })
+                const monthStr = mp
+                    ? formatMonthYear(mp.payment_month, mp.payment_year)
                     : '-';
                 return {
                     id: t.id,
@@ -205,15 +207,22 @@ const FinanceList = () => {
             if (!student_id || !amount || !payment_month) throw new Error("Barcha majburiy maydonlarni to'ldiring");
 
             const amountNum = Number(amount);
-            // payment_month must be first day of the month (schema constraint)
-            const monthFirstDay = `${payment_month}-01`;
+            // payment_month comes from formData as "YYYY-MM"
+            const [year, month] = payment_month.split('-').map(Number);
 
             // 1. Upsert monthly_payment record (creates if not exists, ignores if exists)
             const { data: mpData, error: mpError } = await supabase
                 .from('monthly_payments')
                 .upsert(
-                    [{ student_id, payment_month: monthFirstDay, amount: amountNum, status: 'pending' }],
-                    { onConflict: 'student_id,payment_month', ignoreDuplicates: false }
+                    [{
+                        student_id,
+                        payment_month: month,
+                        payment_year: year,
+                        amount: amountNum,
+                        base_amount: amountNum,
+                        status: 'pending'
+                    }],
+                    { onConflict: 'student_id,payment_month,payment_year', ignoreDuplicates: false }
                 )
                 .select('id')
                 .single();

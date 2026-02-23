@@ -182,7 +182,7 @@ const ParentProfile = () => {
                     supabase.from('grades').select('score').eq('student_id', studentId),
                     supabase.from('attendance').select('status').eq('student_id', studentId),
                     // monthly_payments is the correct table (payments table doesn't exist)
-                    supabase.from('monthly_payments').select('status').eq('student_id', studentId).order('payment_month', { ascending: false }).limit(1).maybeSingle(),
+                    supabase.from('monthly_payments').select('status').eq('student_id', studentId).order('payment_year', { ascending: false }).order('payment_month', { ascending: false }).limit(1).maybeSingle(),
                 ]);
 
                 const profile = profileRes.data || {};

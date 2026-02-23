@@ -72,6 +72,7 @@ const ParentDashboard = () => {
                     .from('monthly_payments')
                     .select('status')
                     .eq('student_id', child.id)
+                    .order('payment_year', { ascending: false })
                     .order('payment_month', { ascending: false })
                     .limit(1);
 
@@ -83,7 +84,7 @@ const ParentDashboard = () => {
                     groups: child.enrollments?.map(e => e.groups?.name).join(', ') || 'Kurslar yo\'q',
                     gpa: scoreCount > 0 ? (scoreSum / scoreCount).toFixed(1) : '—',
                     attendance: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) + '%' : '—',
-                    isPaymentDue: payments?.[0]?.status === 'unpaid'
+                    isPaymentDue: !payments?.[0] || ['pending', 'overdue', 'partially_paid', 'unpaid'].includes(payments[0]?.status)
                 };
             }));
 

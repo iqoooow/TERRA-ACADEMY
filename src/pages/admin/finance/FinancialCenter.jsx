@@ -76,12 +76,17 @@ const FinancialCenter = () => {
 
             // 2. Fetch Enrollments & Monthly Payments
             const studentIds = studentsData.map(s => s.id);
-            const targetDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-
+            // Schema mismatch fix: Using integer month/year as found in StudentPayments.jsx
             const [enrollmentsRes, paymentsRes, txsRes] = await Promise.all([
                 supabase.from('enrollments').select('student_id, groups(id, name, price)').in('student_id', studentIds),
-                supabase.from('monthly_payments').select('*').eq('payment_month', targetDate),
-                supabase.from('payment_transactions').select('*, monthly_payments(student_id, profiles(full_name))').order('created_at', { ascending: false }).limit(100)
+                supabase.from('monthly_payments')
+                    .select('*')
+                    .eq('payment_month', selectedMonth)
+                    .eq('payment_year', selectedYear),
+                supabase.from('payment_transactions')
+                    .select('*, monthly_payments!payment_id!inner(id, student_id, profiles!student_id(full_name))')
+                    .order('created_at', { ascending: false })
+                    .limit(100)
             ]);
 
             // Map Enrollments
@@ -115,7 +120,10 @@ const FinancialCenter = () => {
         setSelectedStudent(student);
         const pay = payments[student.id];
         const groupPrice = student.group?.price || 0;
-        const remaining = pay ? (pay.final_amount || groupPrice) - (pay.paid_amount || 0) : groupPrice;
+        // Support both schema variations: amount / base_amount / final_amount
+        const expected = pay?.final_amount || pay?.amount || pay?.base_amount || groupPrice;
+        const paid = pay?.paid_amount || pay?.amount_paid || 0;
+        const remaining = expected - paid;
 
         setTxAmount(remaining > 0 ? String(remaining) : '');
         setTxMethod('cash');
@@ -130,7 +138,6 @@ const FinancialCenter = () => {
         setIsSubmitting(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            const targetDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
 
             // 1. Ensure Monthly Payment record exists
             let paymentId = payments[selectedStudent.id]?.id;
@@ -139,8 +146,11 @@ const FinancialCenter = () => {
                     .from('monthly_payments')
                     .insert({
                         student_id: selectedStudent.id,
-                        payment_month: targetDate,
+                        payment_month: selectedMonth,
+                        payment_year: selectedYear,
                         amount: selectedStudent.group?.price || 0,
+                        // Compatibility with base_amount schema
+                        base_amount: selectedStudent.group?.price || 0,
                         status: 'pending',
                         due_date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-10`
                     })
@@ -159,7 +169,7 @@ const FinancialCenter = () => {
                     note: txNote || null,
                     performed_by: user.id
                 })
-                .select('*, monthly_payments(profiles(full_name))')
+                .select('*, monthly_payments!payment_id(id, profiles!student_id(full_name))')
                 .single();
             if (txErr) throw txErr;
 

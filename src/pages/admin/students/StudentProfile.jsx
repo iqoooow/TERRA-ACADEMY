@@ -10,7 +10,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
+import { formatMonthYear } from '../../../utils/paymentUtils';
 
 const Section = ({ title, icon: Icon, children, className = '' }) => (
     <div className={`bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden ${className}`}>
@@ -75,7 +75,7 @@ const StudentProfile = () => {
                 // payment_transactions joined via monthly_payments for this student
                 // payment_transactions: basic join with monthly_payments
                 supabase.from('payment_transactions')
-                    .select('id, amount, method, note, created_at, monthly_payments(student_id, payment_month, status)')
+                    .select('id, amount, method, note, created_at, monthly_payments(student_id, payment_month, payment_year, status)')
                     .eq('monthly_payments.student_id', id)
                     .order('created_at', { ascending: false })
                     .limit(12),
@@ -109,6 +109,7 @@ const StudentProfile = () => {
                 method: tx.method,
                 description: tx.note,
                 status: tx.monthly_payments?.status || 'paid',
+                monthName: formatMonthYear(tx.monthly_payments?.payment_month, tx.monthly_payments?.payment_year),
                 month: tx.monthly_payments?.payment_month,
                 created_at: tx.created_at,
             })));
@@ -463,7 +464,7 @@ const StudentProfile = () => {
                                 {payments.slice(0, 6).map(p => (
                                     <div key={p.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
                                         <div>
-                                            <p className="font-black text-slate-800 text-sm">{p.month || p.description || 'To\'lov'}</p>
+                                            <p className="font-black text-slate-800 text-sm">{p.monthName || p.description || 'To\'lov'}</p>
                                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                                 {p.created_at ? format(new Date(p.created_at), 'dd.MM.yyyy') : '—'}
                                             </p>

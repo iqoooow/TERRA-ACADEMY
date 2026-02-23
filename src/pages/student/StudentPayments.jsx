@@ -11,12 +11,7 @@ import { uz } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { cn } from '../../utils/cn';
 
-const STATUS_CONFIG = {
-    paid: { label: "To'langan", bg: 'bg-emerald-500', text: 'text-white', icon: CheckCircle2 },
-    partially_paid: { label: 'Qisman', bg: 'bg-blue-500', text: 'text-white', icon: Receipt },
-    overdue: { label: "Muddati o'tgan", bg: 'bg-rose-500', text: 'text-white', icon: AlertCircle },
-    pending: { label: "Kutilmoqda", bg: 'bg-amber-500', text: 'text-white', icon: Wallet },
-};
+import { formatMonthYear, STATUS_CONFIG } from '../../utils/paymentUtils';
 
 const StudentPayments = () => {
     const [loading, setLoading] = useState(true);
@@ -45,6 +40,7 @@ const StudentPayments = () => {
                 .from('monthly_payments')
                 .select('*')
                 .eq('student_id', user.id)
+                .order('payment_year', { ascending: false })
                 .order('payment_month', { ascending: false });
 
             // 2. Fetch Detailed Transactions (Filtered by RLS automatically)
@@ -100,7 +96,9 @@ const StudentPayments = () => {
 
                     {currentBill && (
                         <div className="glass-card bg-white/10 border-white/10 backdrop-blur-2xl px-10 py-8 rounded-[3rem] text-center min-w-[280px]">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">Joriy Holat</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">
+                                {formatMonthYear(currentBill.payment_month, currentBill.payment_year)} holati
+                            </p>
                             <div className={cn(
                                 "inline-flex items-center gap-2 px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest mb-4",
                                 STATUS_CONFIG[currentBill.status]?.bg || 'bg-slate-500',
