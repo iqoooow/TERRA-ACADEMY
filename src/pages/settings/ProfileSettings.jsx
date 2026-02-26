@@ -125,25 +125,8 @@ const ProfileSettings = () => {
 
         setSaving(true);
         try {
-            // Re-authenticate with current password first to satisfy Supabase session requirements
-            if (passwords.current) {
-                const currentEmail = user?.email || `${user?.profileData?.login_username}@terra.academy`;
-                const { error: reAuthError } = await supabase.auth.signInWithPassword({
-                    email: currentEmail,
-                    password: passwords.current,
-                });
-                if (reAuthError) {
-                    throw new Error("Joriy parol noto'g'ri");
-                }
-            }
-
             const { error } = await supabase.auth.updateUser({ password: passwords.newPass });
-            if (error) {
-                if (error.status === 422) {
-                    throw new Error("Parol o'zgartirishda xatolik. Sahifani yangilang va qayta urinib ko'ring.");
-                }
-                throw error;
-            }
+            if (error) throw error;
 
             setPasswords({ current: '', newPass: '', confirm: '' });
             toast.success("Parol muvaffaqiyatli o'zgartirildi");
@@ -419,24 +402,6 @@ const ProfileSettings = () => {
                             </div>
 
                             <div>
-                                <label className={labelClass}>Joriy parol</label>
-                                <div className="relative">
-                                    <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type={showPw.current ? 'text' : 'password'}
-                                        value={passwords.current}
-                                        onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
-                                        className={inputClass + " pl-11 pr-11"}
-                                        placeholder="Joriy parolni kiriting"
-                                    />
-                                    <button type="button" onClick={() => togglePw('current')}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                                        {showPw.current ? <EyeOff size={15} /> : <Eye size={15} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div>
                                 <label className={labelClass}>Yangi parol</label>
                                 <div className="relative">
                                     <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -499,7 +464,7 @@ const ProfileSettings = () => {
                                 <motion.button
                                     whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                                     onClick={handleChangePassword}
-                                    disabled={saving || !passwords.current || !passwords.newPass || passwords.newPass !== passwords.confirm || passwords.newPass.length < 8}
+                                    disabled={saving || !passwords.newPass || passwords.newPass !== passwords.confirm || passwords.newPass.length < 8}
                                     className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all text-xs uppercase tracking-widest disabled:opacity-50"
                                 >
                                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}
