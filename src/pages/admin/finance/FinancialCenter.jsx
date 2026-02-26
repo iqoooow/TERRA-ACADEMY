@@ -89,22 +89,35 @@ const FinancialCenter = () => {
                     .limit(100)
             ]);
 
-            // Map Enrollments
+            // Map Enrollments: store ALL groups per student (array)
             const enrollMap = {};
             enrollmentsRes.data?.forEach(e => {
-                enrollMap[e.student_id] = e.groups;
+                if (!e.groups) return;
+                if (!enrollMap[e.student_id]) enrollMap[e.student_id] = [];
+                enrollMap[e.student_id].push(e.groups);
             });
 
-            // Map Monthly Payments
+            // Map Monthly Payments by student_id + group_id key
             const pMap = {};
             paymentsRes.data?.forEach(p => {
-                pMap[p.student_id] = p;
+                const key = `${p.student_id}_${p.group_id || 'null'}`;
+                pMap[key] = p;
             });
 
-            setStudents(studentsData.map(s => ({
-                ...s,
-                group: enrollMap[s.id] || null
-            })));
+            // Expand to one row per student-group combination
+            const rows = [];
+            studentsData.forEach(s => {
+                const groups = enrollMap[s.id];
+                if (groups && groups.length > 0) {
+                    groups.forEach(group => {
+                        rows.push({ ...s, rowKey: `${s.id}_${group.id}`, group });
+                    });
+                } else {
+                    rows.push({ ...s, rowKey: `${s.id}_null`, group: null });
+                }
+            });
+
+            setStudents(rows);
             setPayments(pMap);
             setTransactions(txsRes.data || []);
 
@@ -118,11 +131,11 @@ const FinancialCenter = () => {
 
     const handleOpenPayModal = (student) => {
         setSelectedStudent(student);
-        const pay = payments[student.id];
+        const payKey = `${student.id}_${student.group?.id || 'null'}`;
+        const pay = payments[payKey];
         const groupPrice = student.group?.price || 0;
-        // Support both schema variations: amount / base_amount / final_amount
-        const expected = pay?.final_amount || pay?.amount || pay?.base_amount || groupPrice;
-        const paid = pay?.paid_amount || pay?.amount_paid || 0;
+        const expected = pay?.final_amount || pay?.amount || groupPrice;
+        const paid = pay?.paid_amount || 0;
         const remaining = expected - paid;
 
         setTxAmount(remaining > 0 ? String(remaining) : '');
@@ -139,18 +152,18 @@ const FinancialCenter = () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
 
-            // 1. Ensure Monthly Payment record exists
-            let paymentId = payments[selectedStudent.id]?.id;
+            // 1. Ensure Monthly Payment record exists (per student + group)
+            const payKey = `${selectedStudent.id}_${selectedStudent.group?.id || 'null'}`;
+            let paymentId = payments[payKey]?.id;
             if (!paymentId) {
                 const { data: newPay, error: pErr } = await supabase
                     .from('monthly_payments')
                     .insert({
                         student_id: selectedStudent.id,
+                        group_id: selectedStudent.group?.id || null,
                         payment_month: selectedMonth,
                         payment_year: selectedYear,
                         amount: selectedStudent.group?.price || 0,
-                        // Compatibility with base_amount schema
-                        base_amount: selectedStudent.group?.price || 0,
                         status: 'pending',
                         due_date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-10`
                     })
@@ -191,7 +204,8 @@ const FinancialCenter = () => {
     const filteredStudents = useMemo(() =>
         students.filter(s => s.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             s.phone?.includes(searchQuery) ||
-            s.student_code?.toLowerCase().includes(searchQuery.toLowerCase())),
+            s.student_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.group?.name?.toLowerCase().includes(searchQuery.toLowerCase())),
         [students, searchQuery]);
 
     const stats = useMemo(() => {
@@ -217,7 +231,7 @@ const FinancialCenter = () => {
             paid: 0, partially_paid: 0, overdue: 0, pending: 0
         };
         students.forEach(s => {
-            const status = payments[s.id]?.status || 'pending';
+            const status = payments[`${s.id}_${s.group?.id || 'null'}`]?.status || 'pending';
             statusCounts[status]++;
         });
 
@@ -399,7 +413,7 @@ const FinancialCenter = () => {
                                 <EmptyState title="Ma'lumot topilmadi" icon={Search} />
                             ) : (
                                 filteredStudents.map((s, idx) => {
-                                    const pay = payments[s.id];
+                                    const pay = payments[`${s.id}_${s.group?.id || 'null'}`];
                                     const expected = pay?.amount || s.group?.price || 0;
                                     const paid = pay?.paid_amount || 0;
                                     const status = pay?.status || 'pending';
@@ -407,7 +421,7 @@ const FinancialCenter = () => {
 
                                     return (
                                         <motion.div
-                                            key={s.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}
+                                            key={s.rowKey} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}
                                             className="grid grid-cols-12 gap-4 items-center bg-white border border-slate-100 rounded-[2.5rem] p-4 px-8 hover:shadow-2xl hover:shadow-slate-200 hover:border-blue-100 transition-all group"
                                         >
                                             <div className="col-span-4 flex items-center gap-4">

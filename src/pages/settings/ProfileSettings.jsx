@@ -57,9 +57,9 @@ const ProfileSettings = () => {
                 last_name: personal.last_name.trim(),
                 full_name: `${personal.first_name.trim()} ${personal.last_name.trim()}`,
                 phone: personal.phone || null,
+                birth_date: personal.birth_date || null,
                 address: personal.address || null,
                 bio: personal.bio || null,
-                birth_date: personal.birth_date || null,
             };
 
             if (role === 'teacher') {
@@ -98,13 +98,8 @@ const ProfileSettings = () => {
 
             if (existing) throw new Error("Bu login allaqachon band. Boshqa login tanlang.");
 
-            // Update Supabase auth email
-            const { error: authError } = await supabase.auth.updateUser({
-                email: `${trimmed}@terra.academy`
-            });
-            if (authError) throw authError;
-
-            // Update profiles table
+            // Only update profiles table — auth email update causes 400 in Supabase
+            // because email confirmation is required. Login is stored separately.
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({ login_username: trimmed })
@@ -125,13 +120,30 @@ const ProfileSettings = () => {
     // ── Change password ────────────────────────────────────────
     const handleChangePassword = async () => {
         if (!passwords.newPass) return toast.error("Yangi parol kiriting");
-        if (passwords.newPass.length < 6) return toast.error("Parol kamida 6 ta belgidan iborat bo'lishi kerak");
+        if (passwords.newPass.length < 8) return toast.error("Parol kamida 8 ta belgidan iborat bo'lishi kerak");
         if (passwords.newPass !== passwords.confirm) return toast.error("Parollar mos emas");
 
         setSaving(true);
         try {
+            // Re-authenticate with current password first to satisfy Supabase session requirements
+            if (passwords.current) {
+                const currentEmail = user?.email || `${user?.profileData?.login_username}@terra.academy`;
+                const { error: reAuthError } = await supabase.auth.signInWithPassword({
+                    email: currentEmail,
+                    password: passwords.current,
+                });
+                if (reAuthError) {
+                    throw new Error("Joriy parol noto'g'ri");
+                }
+            }
+
             const { error } = await supabase.auth.updateUser({ password: passwords.newPass });
-            if (error) throw error;
+            if (error) {
+                if (error.status === 422) {
+                    throw new Error("Parol o'zgartirishda xatolik. Sahifani yangilang va qayta urinib ko'ring.");
+                }
+                throw error;
+            }
 
             setPasswords({ current: '', newPass: '', confirm: '' });
             toast.success("Parol muvaffaqiyatli o'zgartirildi");
@@ -402,8 +414,26 @@ const ProfileSettings = () => {
                             <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                                 <AlertCircle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
                                 <p className="text-xs text-amber-700 font-medium leading-relaxed">
-                                    Standart parol <span className="font-mono font-black">terraAcademy</span> dan foydalanayotgan bo'lsangiz, xavfsizlik uchun yangi parol o'rnating.
+                                    Standart parol <span className="font-mono font-black">terraAcademy</span> dan foydalanayotgan bo'lsangiz, xavfsizlik uchun yangi parol o'rnating. Yangi parol kamida 8 belgidan iborat bo'lishi kerak.
                                 </p>
+                            </div>
+
+                            <div>
+                                <label className={labelClass}>Joriy parol</label>
+                                <div className="relative">
+                                    <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type={showPw.current ? 'text' : 'password'}
+                                        value={passwords.current}
+                                        onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
+                                        className={inputClass + " pl-11 pr-11"}
+                                        placeholder="Joriy parolni kiriting"
+                                    />
+                                    <button type="button" onClick={() => togglePw('current')}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                        {showPw.current ? <EyeOff size={15} /> : <Eye size={15} />}
+                                    </button>
+                                </div>
                             </div>
 
                             <div>
@@ -426,14 +456,14 @@ const ProfileSettings = () => {
                                     <div className="mt-2 flex items-center gap-2">
                                         <div className="flex gap-1 flex-1">
                                             {[1, 2, 3, 4].map(i => (
-                                                <div key={i} className={`h-1 flex-1 rounded-full transition-all ${passwords.newPass.length >= i * 2
-                                                    ? passwords.newPass.length >= 8 ? 'bg-emerald-500' : passwords.newPass.length >= 6 ? 'bg-amber-400' : 'bg-red-400'
+                                                <div key={i} className={`h-1 flex-1 rounded-full transition-all ${passwords.newPass.length >= i * 3
+                                                    ? passwords.newPass.length >= 10 ? 'bg-emerald-500' : passwords.newPass.length >= 8 ? 'bg-amber-400' : 'bg-red-400'
                                                     : 'bg-slate-200'
                                                     }`} />
                                             ))}
                                         </div>
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">
-                                            {passwords.newPass.length < 6 ? 'Zaif' : passwords.newPass.length < 8 ? 'O\'rtacha' : 'Kuchli'}
+                                            {passwords.newPass.length < 8 ? 'Zaif' : passwords.newPass.length < 10 ? 'O\'rtacha' : 'Kuchli'}
                                         </span>
                                     </div>
                                 )}
@@ -469,7 +499,7 @@ const ProfileSettings = () => {
                                 <motion.button
                                     whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                                     onClick={handleChangePassword}
-                                    disabled={saving || !passwords.newPass || passwords.newPass !== passwords.confirm || passwords.newPass.length < 6}
+                                    disabled={saving || !passwords.current || !passwords.newPass || passwords.newPass !== passwords.confirm || passwords.newPass.length < 8}
                                     className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all text-xs uppercase tracking-widest disabled:opacity-50"
                                 >
                                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}

@@ -88,15 +88,15 @@ const TeacherDashboard = () => {
             if (profile) setTeacherName(profile.first_name || profile.full_name);
 
             // 2. Get Groups
+            // NOTE: 'room' column is added via PATCH_03. It's safe to include after running the patch.
             const { data: groups, error: groupsError } = await supabase
                 .from('groups')
                 .select(`
-                    id, 
-                    name, 
+                    id,
+                    name,
                     subjects (name),
                     schedule_days,
-                    time,
-                    room
+                    time
                 `)
                 .eq('teacher_id', user.id);
 

@@ -10,6 +10,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
+import { format } from 'date-fns';
 import { formatMonthYear } from '../../../utils/paymentUtils';
 
 const Section = ({ title, icon: Icon, children, className = '' }) => (
