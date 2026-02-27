@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    middlewareMode: false,
+  },
   build: {
     rollupOptions: {
       output: {
