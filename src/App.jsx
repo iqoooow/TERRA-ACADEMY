@@ -80,6 +80,13 @@ function App() {
               <Route path="/setup" element={<FirstLoginSetup />} />
             </Route>
 
+            {/* Settings — all authenticated roles (must be before role-specific blocks) */}
+            <Route element={<ProtectedRoute allowedRoles={['owner', 'admin', 'teacher', 'student', 'parent']} />}>
+              <Route element={<MainLayout />}>
+                <Route path="/settings" element={<ProfileSettings />} />
+              </Route>
+            </Route>
+
             {/* Owner / Admin Routes */}
             <Route element={<ProtectedRoute allowedRoles={['owner', 'admin']} />}>
               <Route element={<MainLayout />}>
@@ -98,7 +105,6 @@ function App() {
                 <Route path="/admin/attendance" element={<AttendanceList />} />
                 <Route path="/admin/grades" element={<GradeList />} />
                 <Route path="/admin/payments" element={<FinancialCenter />} />
-                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -110,7 +116,6 @@ function App() {
                 <Route path="/teacher/exams" element={<TeacherExams />} />
                 <Route path="/teacher/grades" element={<TeacherGrades />} />
                 <Route path="/teacher/attendance" element={<TeacherAttendance />} />
-                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -122,7 +127,6 @@ function App() {
                 <Route path="/student/grades" element={<StudentGrades />} />
                 <Route path="/student/schedule" element={<StudentSchedule />} />
                 <Route path="/student/payments" element={<StudentPayments />} />
-                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 
@@ -132,7 +136,6 @@ function App() {
                 <Route path="/parent/dashboard" element={<ParentDashboard />} />
                 <Route path="/parent/children" element={<ChildPerformance />} />
                 <Route path="/parent/payments" element={<ParentPayments />} />
-                <Route path="/settings" element={<ProfileSettings />} />
               </Route>
             </Route>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Phone, MapPin, Lock, AtSign, Eye, EyeOff,
@@ -6,6 +7,7 @@ import {
     Camera, BookOpen, Briefcase, FileText
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -20,6 +22,7 @@ const TAB_IDS = {
 
 const ProfileSettings = () => {
     const { user, refreshProfile } = useAuth();
+    const navigate = useNavigate();
     const role = user?.role || 'student';
 
     const [activeTab, setActiveTab] = useState(TAB_IDS.personal);
@@ -86,9 +89,13 @@ const ProfileSettings = () => {
         if (trimmed.length < 4) return toast.error("Login kamida 4 ta belgidan iborat bo'lishi kerak");
         if (trimmed !== loginConfirm.trim().toLowerCase()) return toast.error("Loginlar mos emas");
 
+        if (!supabaseAdmin) {
+            return toast.error("Admin client yo'q. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo'shing.");
+        }
+
         setSaving(true);
         try {
-            // Check uniqueness
+            // 1. Uniqueness check
             const { data: existing } = await supabase
                 .from('profiles')
                 .select('id')
@@ -98,18 +105,25 @@ const ProfileSettings = () => {
 
             if (existing) throw new Error("Bu login allaqachon band. Boshqa login tanlang.");
 
-            // Only update profiles table — auth email update causes 400 in Supabase
-            // because email confirmation is required. Login is stored separately.
+            // 2. Update profiles table
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({ login_username: trimmed })
                 .eq('id', user.id);
             if (profileError) throw profileError;
 
-            await refreshProfile();
-            setNewLogin('');
-            setLoginConfirm('');
-            toast.success(`Login muvaffaqiyatli o'zgartirildi: ${trimmed}`);
+            // 3. Sync auth email — without this the new login won't work for sign-in
+            const newEmail = `${trimmed}@terra.academy`;
+            const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+                user.id,
+                { email: newEmail }
+            );
+            if (authError) throw authError;
+
+            // 4. Sign out and redirect — user must re-login with new credentials
+            toast.success(`Login o'zgartirildi: "${trimmed}". Iltimos, qayta kiring.`);
+            await supabase.auth.signOut();
+            navigate('/');
         } catch (err) {
             toast.error('Xatolik: ' + err.message);
         } finally {
@@ -123,9 +137,17 @@ const ProfileSettings = () => {
         if (passwords.newPass.length < 8) return toast.error("Parol kamida 8 ta belgidan iborat bo'lishi kerak");
         if (passwords.newPass !== passwords.confirm) return toast.error("Parollar mos emas");
 
+        if (!supabaseAdmin) {
+            return toast.error("Admin client yo'q. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo'shing.");
+        }
+
         setSaving(true);
         try {
-            const { error } = await supabase.auth.updateUser({ password: passwords.newPass });
+            // Use admin API — avoids 422 session/confirmation issues with regular auth.updateUser
+            const { error } = await supabaseAdmin.auth.admin.updateUserById(
+                user.id,
+                { password: passwords.newPass }
+            );
             if (error) throw error;
 
             setPasswords({ current: '', newPass: '', confirm: '' });

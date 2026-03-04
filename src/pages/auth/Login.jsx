@@ -1,15 +1,21 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, User, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Users, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { GraduationCap, User, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Users, BarChart3, HelpCircle, Phone, X, MessageCircle, KeyRound, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 const features = [
     { icon: ShieldCheck, text: "Faqat adminlar tomonidan boshqariladigan yopiq tizim" },
     { icon: Users, text: "O'quvchi, o'qituvchi va ota-onalar markazlashgan boshqaruvi" },
     { icon: BarChart3, text: "Real vaqtda to'lov, davomat va baho tahlili" },
 ];
+
+// ── Admin contact info — change these values as needed ──────────
+const ADMIN_PHONE = '+998 95 580 16 00';       // ← raqamni o'zgartiring
+const ADMIN_TELEGRAM = '@iqooow';                      // ← telegram username (ixtiyoriy)
+// ────────────────────────────────────────────────────────────────
 
 const Login = () => {
     const { login } = useAuth();
@@ -18,6 +24,29 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotUsername, setForgotUsername] = useState('');
+    const [forgotStep, setForgotStep] = useState(1); // 1=input, 2=success
+    const [forgotLoading, setForgotLoading] = useState(false);
+
+    const handleForgotSubmit = async () => {
+        const trimmed = forgotUsername.trim().toLowerCase();
+        if (!trimmed) return;
+        setForgotLoading(true);
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('login_username', trimmed)
+                .maybeSingle();
+            // Show step 2 regardless (don't reveal if user exists or not — security)
+            setForgotStep(2);
+        } catch {
+            setForgotStep(2);
+        } finally {
+            setForgotLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -218,6 +247,18 @@ const Login = () => {
                                 </>
                             )}
                         </motion.button>
+
+                        {/* Forgot password link */}
+                        <div className="text-center pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setShowForgotModal(true)}
+                                className="text-xs text-slate-400 hover:text-blue-500 font-medium transition-colors inline-flex items-center gap-1.5"
+                            >
+                                <HelpCircle size={13} />
+                                Parolni unutdingizmi?
+                            </button>
+                        </div>
                     </form>
 
                     {/* Info notice */}
@@ -233,6 +274,171 @@ const Login = () => {
                     </p>
                 </motion.div>
             </div>
+
+            {/* ── Forgot Password Modal ── */}
+            <AnimatePresence>
+                {showForgotModal && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                            onClick={() => { setShowForgotModal(false); setForgotStep(1); setForgotUsername(''); }}
+                        />
+
+                        {/* Modal */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                        >
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[400px] overflow-hidden pointer-events-auto">
+
+                                <AnimatePresence mode="wait">
+                                    {/* ── Step 1: Enter login ── */}
+                                    {forgotStep === 1 && (
+                                        <motion.div
+                                            key="step1"
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            className="p-8"
+                                        >
+                                            {/* Close */}
+                                            <button
+                                                onClick={() => { setShowForgotModal(false); setForgotUsername(''); }}
+                                                className="absolute top-5 right-5 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-400 transition-all"
+                                            >
+                                                <X size={15} />
+                                            </button>
+
+                                            {/* Icon */}
+                                            <div className="flex justify-center mb-6">
+                                                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center">
+                                                    <KeyRound size={28} className="text-blue-600" />
+                                                </div>
+                                            </div>
+
+                                            {/* Title */}
+                                            <h3 className="text-xl font-black text-slate-900 text-center tracking-tight mb-1">Parolni tiklash</h3>
+                                            <p className="text-sm text-slate-400 text-center font-medium mb-7">
+                                                Loginizni kiriting, administrator bilan bog'lanamiz
+                                            </p>
+
+                                            {/* Input */}
+                                            <div className="mb-4">
+                                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Login</label>
+                                                <div className="relative">
+                                                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={forgotUsername}
+                                                        onChange={(e) => setForgotUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                                                        className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-slate-800 font-medium text-sm placeholder:text-slate-400"
+                                                        placeholder="loginizni kiriting"
+                                                        onKeyDown={(e) => e.key === 'Enter' && forgotUsername.trim() && handleForgotSubmit()}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={handleForgotSubmit}
+                                                disabled={!forgotUsername.trim() || forgotLoading}
+                                                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 text-sm"
+                                            >
+                                                {forgotLoading
+                                                    ? <Loader2 size={17} className="animate-spin" />
+                                                    : 'Davom etish'
+                                                }
+                                            </button>
+
+                                            <button
+                                                onClick={() => { setShowForgotModal(false); setForgotUsername(''); }}
+                                                className="w-full mt-3 py-3 text-slate-400 hover:text-slate-600 font-semibold text-sm transition-colors"
+                                            >
+                                                Bekor qilish
+                                            </button>
+                                        </motion.div>
+                                    )}
+
+                                    {/* ── Step 2: Contact info ── */}
+                                    {forgotStep === 2 && (
+                                        <motion.div
+                                            key="step2"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: 20 }}
+                                            className="p-8"
+                                        >
+                                            {/* Success icon */}
+                                            <div className="flex justify-center mb-5">
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
+                                                    className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center"
+                                                >
+                                                    <CheckCircle2 size={30} className="text-emerald-500" />
+                                                </motion.div>
+                                            </div>
+
+                                            <h3 className="text-xl font-black text-slate-900 text-center tracking-tight mb-1">Login topildi!</h3>
+                                            <p className="text-sm text-slate-400 text-center font-medium mb-6">
+                                                Parolni tiklash uchun administrator bilan bog'laning
+                                            </p>
+
+                                            {/* Contact */}
+                                            <div className="space-y-3 mb-6">
+                                                <a
+                                                    href={`tel:${ADMIN_PHONE.replace(/\s/g, '')}`}
+                                                    className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl transition-all group"
+                                                >
+                                                    <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center transition-all shrink-0">
+                                                        <Phone size={16} className="text-blue-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telefon</p>
+                                                        <p className="text-sm font-black text-slate-800">{ADMIN_PHONE}</p>
+                                                    </div>
+                                                </a>
+
+                                                {ADMIN_TELEGRAM && (
+                                                    <a
+                                                        href={`https://t.me/${ADMIN_TELEGRAM.replace('@', '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-sky-50 border border-slate-100 hover:border-sky-200 rounded-2xl transition-all group"
+                                                    >
+                                                        <div className="w-10 h-10 bg-sky-100 group-hover:bg-sky-200 rounded-xl flex items-center justify-center transition-all shrink-0">
+                                                            <MessageCircle size={16} className="text-sky-500" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telegram</p>
+                                                            <p className="text-sm font-black text-slate-800">{ADMIN_TELEGRAM}</p>
+                                                        </div>
+                                                    </a>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                onClick={() => { setShowForgotModal(false); setForgotStep(1); setForgotUsername(''); }}
+                                                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-2xl text-sm transition-all"
+                                            >
+                                                Tushundim
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

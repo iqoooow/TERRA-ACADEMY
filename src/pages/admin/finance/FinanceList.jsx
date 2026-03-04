@@ -265,20 +265,20 @@ const FinanceList = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-slate-900 to-black opacity-90 transition-transform duration-1000 group-hover:scale-105"></div>
                 <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
 
-                <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300 mb-6 backdrop-blur-xl"
+                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300 mb-4 md:mb-6 backdrop-blur-xl"
                         >
                             <DollarSign size={14} className="text-emerald-400" />
                             Financial Intelligence
                         </motion.div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter mb-3 md:mb-4 leading-none">
                             Moliya <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400">Markazi.</span>
                         </h1>
-                        <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl leading-relaxed">
+                        <p className="text-slate-400 font-medium text-base md:text-xl max-w-xl leading-relaxed">
                             Barcha tranzaksiyalar va tushumlarni <span className="text-white font-bold">professional</span> darajada nazorat qiling.
                         </p>
                     </div>
@@ -337,7 +337,7 @@ const FinanceList = () => {
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all text-sm font-bold text-slate-700 placeholder:text-slate-400"
                     />
                 </div>
-                <div className="flex gap-2 p-1">
+                <div className="flex gap-2 p-1 w-full md:w-auto">
                     <button
                         onClick={fetchFinance}
                         disabled={loading}
@@ -347,14 +347,14 @@ const FinanceList = () => {
                     </button>
                     <button
                         onClick={handleExport}
-                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95"
                     >
                         <Download size={16} />
                         Eksport
                     </button>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95"
                     >
                         <Plus size={16} />
                         Kirim Qilish
@@ -375,7 +375,8 @@ const FinanceList = () => {
                     description={searchQuery ? `"${searchQuery}" bo'yicha hech qanday to'lov ma'lumoti topilmadi.` : "Hozircha moliyaviy amallar mavjud emas."}
                 />
             ) : (
-                <div className="space-y-4 pt-4">
+                <div className="overflow-x-auto">
+                <div className="min-w-[720px] space-y-4 pt-4">
                     <div className="px-10 grid grid-cols-7 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
                         <div className="col-span-1">TRX ID</div>
                         <div className="col-span-2">O'quvchi</div>
@@ -448,6 +449,7 @@ const FinanceList = () => {
                             </motion.div>
                         ))}
                     </AnimatePresence>
+                </div>
                 </div>
             )}
 

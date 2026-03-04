@@ -212,7 +212,7 @@ const StudentPayments = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-900 opacity-90 transition-transform duration-1000 hover:scale-105"></div>
                 <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px]"></div>
 
-                <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
+                <div className="relative z-10 p-5 sm:p-8 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
@@ -221,10 +221,10 @@ const StudentPayments = () => {
                             <TrendingUp size={12} className="text-indigo-300" />
                             Moliyaviy Monitoring
                         </motion.div>
-                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3 italic">
+                        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-3 italic">
                             Oylik <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-violet-200 not-italic">To'lovlar</span>
                         </h1>
-                        <p className="text-indigo-100/70 font-medium text-lg max-w-xl">
+                        <p className="text-indigo-100/70 font-medium text-base md:text-lg max-w-xl">
                             {MONTHS[selectedMonth - 1]} {selectedYear} — o'quvchilar to'lov holatlari va tranzaksiyalar
                         </p>
                     </div>
@@ -313,7 +313,7 @@ const StudentPayments = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 w-full md:w-auto">
                     <button
                         onClick={fetchData} disabled={loading}
                         className="p-3.5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50 active:scale-95"
@@ -322,7 +322,7 @@ const StudentPayments = () => {
                     </button>
                     <button
                         onClick={handleExport}
-                        className="flex items-center gap-2 px-5 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95"
                     >
                         <Download size={16} />
                         CSV
@@ -339,7 +339,9 @@ const StudentPayments = () => {
             ) : filteredStudents.length === 0 ? (
                 <EmptyState icon={Users} title="O'quvchilar topilmadi" description={searchQuery ? `"${searchQuery}" bo'yicha hech kim topilmadi.` : "Hozircha ro'yxat bo'sh."} />
             ) : (
-                <div className="space-y-3">
+                <>
+                <div className="overflow-x-auto">
+                <div className="min-w-[780px] space-y-3">
                     {/* Header row */}
                     <div className="grid grid-cols-12 gap-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         <div className="col-span-3">O'quvchi</div>
@@ -461,6 +463,8 @@ const StudentPayments = () => {
                             );
                         })}
                     </AnimatePresence>
+                </div>
+                </div>
 
                     {/* Summary footer */}
                     <div className="mt-6 p-6 bg-gradient-to-r from-slate-900 to-indigo-950 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4">
@@ -498,7 +502,7 @@ const StudentPayments = () => {
                             </p>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* ── Transaction Modal ── */}

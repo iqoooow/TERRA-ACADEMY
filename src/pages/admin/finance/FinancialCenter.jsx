@@ -265,19 +265,19 @@ const FinancialCenter = () => {
                 <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px]"></div>
                 <div className="absolute bottom-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]"></div>
 
-                <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-6 backdrop-blur-xl"
+                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-4 md:mb-6 backdrop-blur-xl"
                         >
                             <TrendingUp size={14} className="text-blue-400" />
                             Financial Intelligence Center
                         </motion.div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none italic">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none italic">
                             Terra <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 not-italic">Capital.</span>
                         </h1>
-                        <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl leading-relaxed">
+                        <p className="text-slate-400 font-medium text-base md:text-xl max-w-xl leading-relaxed">
                             {MONTHS[selectedMonth - 1]} {selectedYear} hisoboti — tizimning moliyaviy barqarorligi tahlili.
                         </p>
                     </div>
@@ -359,7 +359,7 @@ const FinancialCenter = () => {
                     >
                         {/* Filters */}
                         <div className="glass-card p-3 flex flex-col md:flex-row items-center gap-3 sticky top-24 z-30 bg-white/80 backdrop-blur-xl border-slate-100">
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 w-full md:w-auto">
                                 <div className="relative">
                                     <select
                                         value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}
@@ -389,18 +389,19 @@ const FinancialCenter = () => {
                                 />
                             </div>
 
-                            <div className="flex gap-2 text-white">
+                            <div className="flex gap-2 w-full md:w-auto">
                                 <button onClick={fetchData} className="p-3.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-blue-600 hover:text-white transition-all active:scale-95">
                                     <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                                 </button>
-                                <button className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95">
+                                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95">
                                     <Download size={16} /> Export
                                 </button>
                             </div>
                         </div>
 
                         {/* List */}
-                        <div className="space-y-3">
+                        <div className="overflow-x-auto">
+                        <div className="min-w-[700px] space-y-3">
                             <div className="grid grid-cols-12 gap-4 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 <div className="col-span-4">O'quvchi & Guruh</div>
                                 <div className="col-span-2 text-center">To'lanishi kerak</div>
@@ -460,6 +461,7 @@ const FinancialCenter = () => {
                                     );
                                 })
                             )}
+                        </div>
                         </div>
                     </motion.div>
                 )}

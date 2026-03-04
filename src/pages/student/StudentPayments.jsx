@@ -81,15 +81,15 @@ const StudentPayments = () => {
             <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-indigo-900 to-black opacity-95"></div>
 
-                <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
                     <div>
-                        <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/10 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-blue-300 mb-6 backdrop-blur-md">
+                        <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/10 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-blue-300 mb-4 md:mb-6 backdrop-blur-md">
                             <CreditCard size={14} /> My Finances
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none italic">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none italic">
                             Xarajatlar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-200 not-italic">Tahlili.</span>
                         </h1>
-                        <p className="text-blue-100/60 font-medium text-lg max-w-xl">
+                        <p className="text-blue-100/60 font-medium text-base md:text-lg max-w-xl">
                             Oylik to'lovlar, qoldiq qarzlar va barcha muvaffaqiyatli tranzaksiyalaringiz markazi.
                         </p>
                     </div>

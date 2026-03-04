@@ -168,8 +168,8 @@ const AttendanceList = () => {
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400"
                     />
                 </div>
-                <div className="flex gap-2 p-1">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+                <div className="flex gap-2 p-1 w-full md:w-auto">
+                    <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
                         <FileText size={16} />
                         Export PDF
                     </button>

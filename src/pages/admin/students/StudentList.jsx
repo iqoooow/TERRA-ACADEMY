@@ -180,20 +180,20 @@ const StudentList = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-slate-900 to-black opacity-90 transition-transform duration-1000 group-hover:scale-105"></div>
                 <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
 
-                <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-6 backdrop-blur-xl"
+                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-4 md:mb-6 backdrop-blur-xl"
                         >
                             <GraduationCap size={14} className="text-blue-400" />
                             Registry Intelligence
                         </motion.div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter mb-3 md:mb-4 leading-none">
                             O'quvchilar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400">Arxivi.</span>
                         </h1>
-                        <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl leading-relaxed">
+                        <p className="text-slate-400 font-medium text-base md:text-xl max-w-xl leading-relaxed">
                             Barcha o'quvchilar ma'lumotlarini <span className="text-white font-bold">industrial</span> standartda boshqaring va nazorat qiling.
                         </p>
                     </div>
@@ -250,7 +250,8 @@ const StudentList = () => {
             </div>
 
             {/* Separated Row Table */}
-            <div className="space-y-4">
+            <div className="overflow-x-auto">
+            <div className="min-w-[640px] space-y-4">
                 <div className="px-10 grid grid-cols-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                     <div className="col-span-2">O'quvchi Ma'lumotlari</div>
                     <div className="col-span-1">ID Kodi</div>
@@ -343,6 +344,7 @@ const StudentList = () => {
                         </AnimatePresence>
                     </div>
                 )}
+            </div>
             </div>
 
             {/* Ultra-Premium Pagination */}

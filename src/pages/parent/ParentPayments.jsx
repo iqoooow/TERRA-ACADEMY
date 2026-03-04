@@ -103,20 +103,20 @@ const ParentPayments = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-slate-900 to-black opacity-90"></div>
                 <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]"></div>
 
-                <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
                     <div className="w-full">
                         <button
                             onClick={() => navigate(-1)}
-                            className="inline-flex items-center gap-2 text-emerald-400 font-black text-[10px] uppercase tracking-widest mb-6 hover:text-emerald-300 transition-colors"
+                            className="inline-flex items-center gap-2 text-emerald-400 font-black text-[10px] uppercase tracking-widest mb-4 md:mb-6 hover:text-emerald-300 transition-colors"
                         >
                             <ChevronLeft size={14} /> Orqaga qaytish
                         </button>
                         <div className="flex flex-col md:flex-row md:items-end gap-6 mb-4">
-                            <div className="w-20 h-20 bg-emerald-500/20 rounded-[2rem] flex items-center justify-center text-emerald-300 font-black text-4xl border border-emerald-500/20 shadow-inner">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-500/20 rounded-[2rem] flex items-center justify-center text-emerald-300 font-black text-3xl md:text-4xl border border-emerald-500/20 shadow-inner">
                                 {studentInfo?.full_name?.[0]}
                             </div>
                             <div>
-                                <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-none italic">
+                                <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter leading-none italic">
                                     {studentInfo?.full_name} <br />
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200 not-italic">To'lovlar Tarixi.</span>
                                 </h1>
