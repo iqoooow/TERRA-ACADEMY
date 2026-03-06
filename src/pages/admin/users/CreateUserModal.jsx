@@ -133,7 +133,7 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
                 subject_specialty: role === 'teacher' && form.subject_specialty ? form.subject_specialty.trim() : null,
             };
 
-            const { error: profileError } = await supabase.from('profiles').insert(profileInsert);
+            const { error: profileError } = await supabase.from('profiles').upsert(profileInsert, { onConflict: 'id' });
             if (profileError) {
                 // Cleanup auth user if profile insert failed
                 if (supabaseAdmin) await supabaseAdmin.auth.admin.deleteUser(newUserId);

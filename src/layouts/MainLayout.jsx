@@ -68,6 +68,13 @@ const MainLayout = () => {
             'settings': "Sozlamalar",
         };
 
+        // If last segment is a UUID or numeric ID, use parent segment title
+        const isId = /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(lastSegment) || /^\d+$/.test(lastSegment);
+        if (isId && segments.length >= 2) {
+            const parent = segments[segments.length - 2];
+            return titles[parent] ? `${titles[parent]} — Batafsil` : lastSegment;
+        }
+
         return titles[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
     };
 

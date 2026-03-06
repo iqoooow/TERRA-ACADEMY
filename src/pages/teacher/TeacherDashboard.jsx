@@ -163,9 +163,10 @@ const TeacherDashboard = () => {
             setUpcomingExams(examCount || 0);
 
             // 5. Filter Schedule for TODAY
-            const todayShort = new Date().toLocaleDateString('en-US', { weekday: 'short' });
+            const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const todayShort = DAY_KEYS[new Date().getDay()];
             const todaySchedule = groups
-                .filter(g => g.schedule_days && g.schedule_days.includes(todayShort))
+                .filter(g => Array.isArray(g.schedule_days) && g.schedule_days.includes(todayShort))
                 .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
             setSchedule(todaySchedule);
@@ -197,7 +198,7 @@ const TeacherDashboard = () => {
     };
 
     return (
-        <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
+        <div className="space-y-4 sm:space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Premium Header */}
             <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
                 {/* Dynamic Background */}
@@ -248,16 +249,16 @@ const TeacherDashboard = () => {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6"
             >
                 {stats.map((stat, i) => (
-                    <motion.div key={i} variants={item}>
+                    <motion.div key={i} variants={item} className={i === stats.length - 1 && stats.length % 2 !== 0 ? 'col-span-2 md:col-span-1' : ''}>
                         <StatsCard {...stat} idx={i} />
                     </motion.div>
                 ))}
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
                 {/* Today's Schedule (8 cols) */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -369,8 +370,8 @@ const TeacherDashboard = () => {
                             </div>
                         ) : (
                             <>
-                                <div className="flex-1 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                <div className="w-full min-h-[300px]">
+                                    <ResponsiveContainer width="100%" height={300}>
                                         <BarChart data={groupStats} layout="vertical" barSize={32} barGap={12}>
                                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#F1F5F9" />
                                             <XAxis type="number" hide domain={[0, 100]} />

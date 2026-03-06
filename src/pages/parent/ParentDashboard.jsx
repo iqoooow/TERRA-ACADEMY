@@ -5,6 +5,20 @@ import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import LoadingScreen from '../../components/common/LoadingScreen';
 
+const parseScore = (score) => {
+    if (!score) return 0;
+    const s = score.toString().toUpperCase().trim();
+    if (s === 'A1') return 30;
+    if (s === 'A2') return 50;
+    if (s === 'B1') return 65;
+    if (s === 'B2') return 75;
+    if (s === 'C1') return 85;
+    if (s === 'C2') return 95;
+    const num = parseFloat(s);
+    if (!isNaN(num)) return num <= 10 ? num * 10 : num;
+    return 0;
+};
+
 const ParentDashboard = () => {
     const navigate = useNavigate();
     const [children, setChildren] = useState([]);
@@ -58,7 +72,7 @@ const ParentDashboard = () => {
                 let scoreSum = 0;
                 let scoreCount = 0;
                 (grades || []).forEach(g => {
-                    const val = parseFloat(g.score) || 0;
+                    const val = parseScore(g.score);
                     if (val > 0) { scoreSum += val; scoreCount++; }
                 });
 
@@ -82,7 +96,7 @@ const ParentDashboard = () => {
                     shortName: child.first_name,
                     code: child.student_code,
                     groups: child.enrollments?.map(e => e.groups?.name).join(', ') || 'Kurslar yo\'q',
-                    gpa: scoreCount > 0 ? (scoreSum / scoreCount).toFixed(1) : '—',
+                    gpa: scoreCount > 0 ? Math.round(scoreSum / scoreCount) + '%' : '—',
                     attendance: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) + '%' : '—',
                     isPaymentDue: !payments?.[0] || ['pending', 'overdue', 'partially_paid', 'unpaid'].includes(payments[0]?.status)
                 };

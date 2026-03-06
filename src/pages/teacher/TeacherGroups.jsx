@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Search, ChevronRight, GraduationCap, Users, Clock, Calendar, BookOpen, MoreVertical, Sparkles, Loader2, BarChart2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const TeacherGroups = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -18,14 +20,12 @@ const TeacherGroups = () => {
                 const { data: groupData, error } = await supabase
                     .from('groups')
                     .select(`
-                        id, 
-                        name, 
-                        level,
+                        id,
+                        name,
                         schedule_days,
                         time,
-                        room,
                         subjects (name),
-                        enrollments (count)
+                        enrollments (student_id)
                     `)
                     .eq('teacher_id', user.id);
 
@@ -73,8 +73,8 @@ const TeacherGroups = () => {
                         id: group.id,
                         name: group.name,
                         subject: group.subjects?.name || 'General',
-                        level: group.level || 'Standard',
-                        students: group.enrollments[0]?.count || 0,
+                        level: 'Standard',
+                        students: group.enrollments?.length || 0,
                         schedule: `${group.schedule_days?.join(', ') || 'TBD'} • ${group.time?.slice(0, 5) || '--:--'}`,
                         room: group.room || 'Online',
                         progress: progress
@@ -239,7 +239,10 @@ const TeacherGroups = () => {
                                     </div>
                                 </div>
 
-                                <button className="w-full py-3.5 flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/20 hover:shadow-indigo-600/30 active:scale-95 group/btn">
+                                <button
+                                    onClick={() => navigate(`/teacher/groups/${group.id}`)}
+                                    className="w-full py-3.5 flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/20 hover:shadow-indigo-600/30 active:scale-95 group/btn"
+                                >
                                     <span>Guruhni Ochish</span>
                                     <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
                                 </button>

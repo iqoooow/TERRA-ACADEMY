@@ -37,6 +37,7 @@ const GradeList = lazy(() => import('./pages/admin/grades/GradeList'));
 // Teacher Pages
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'));
 const TeacherGroups = lazy(() => import('./pages/teacher/TeacherGroups'));
+const TeacherGroupDetail = lazy(() => import('./pages/teacher/TeacherGroupDetail'));
 const TeacherExams = lazy(() => import('./pages/teacher/TeacherExams'));
 const TeacherGrades = lazy(() => import('./pages/teacher/TeacherGrades'));
 const TeacherAttendance = lazy(() => import('./pages/teacher/TeacherAttendance'));
@@ -113,6 +114,7 @@ function App() {
               <Route element={<MainLayout />}>
                 <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                 <Route path="/teacher/groups" element={<TeacherGroups />} />
+                <Route path="/teacher/groups/:id" element={<TeacherGroupDetail />} />
                 <Route path="/teacher/exams" element={<TeacherExams />} />
                 <Route path="/teacher/grades" element={<TeacherGrades />} />
                 <Route path="/teacher/attendance" element={<TeacherAttendance />} />

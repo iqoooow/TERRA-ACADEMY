@@ -124,14 +124,14 @@ const ParentPayments = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 shrink-0">
-                        <div className="glass-card bg-white/5 border-white/10 backdrop-blur-2xl px-8 py-6 rounded-[2.5rem] min-w-[180px]">
+                    <div className="grid grid-cols-2 gap-4 w-full md:w-auto md:shrink-0">
+                        <div className="glass-card bg-white/5 border-white/10 backdrop-blur-2xl px-6 py-6 rounded-[2.5rem]">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2 block">Jami To'langan</span>
-                            <div className="font-black text-white text-3xl tracking-tighter tabular-nums">{totalPaid.toLocaleString()}</div>
+                            <div className="font-black text-white text-2xl md:text-3xl tracking-tighter tabular-nums">{totalPaid.toLocaleString()}</div>
                         </div>
-                        <div className="glass-card bg-white/10 border-white/10 backdrop-blur-2xl px-8 py-6 rounded-[2.5rem] min-w-[180px]">
+                        <div className="glass-card bg-white/10 border-white/10 backdrop-blur-2xl px-6 py-6 rounded-[2.5rem]">
                             <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-2 block">Qarz</span>
-                            <div className="font-black text-rose-400 text-3xl tracking-tighter tabular-nums">{debt > 0 ? debt.toLocaleString() : 0}</div>
+                            <div className="font-black text-rose-400 text-2xl md:text-3xl tracking-tighter tabular-nums">{debt > 0 ? debt.toLocaleString() : 0}</div>
                         </div>
                     </div>
                 </div>

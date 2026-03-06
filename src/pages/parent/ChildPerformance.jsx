@@ -1,14 +1,29 @@
 import { useState, useEffect } from 'react';
 import Table, { TableRow, TableCell } from '../../components/ui/Table';
 import { supabase } from '../../lib/supabase';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, BookOpen, MessageSquare, Star } from 'lucide-react';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import { format } from 'date-fns';
 
+const parseScore = (score) => {
+    if (!score) return 0;
+    const s = score.toString().toUpperCase().trim();
+    if (s === 'A1') return 30;
+    if (s === 'A2') return 50;
+    if (s === 'B1') return 65;
+    if (s === 'B2') return 75;
+    if (s === 'C1') return 85;
+    if (s === 'C2') return 95;
+    const num = parseFloat(s);
+    if (!isNaN(num)) return num <= 10 ? num * 10 : num;
+    return 0;
+};
+
 const ChildPerformance = () => {
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const studentId = searchParams.get('id');
     const [grades, setGrades] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,6 +32,8 @@ const ChildPerformance = () => {
     useEffect(() => {
         if (studentId) {
             fetchPerformanceData();
+        } else {
+            setLoading(false);
         }
     }, [studentId]);
 
@@ -50,6 +67,21 @@ const ChildPerformance = () => {
 
     if (loading) return <LoadingScreen />;
 
+    if (!studentId) {
+        return (
+            <div className="h-[60vh] flex flex-col items-center justify-center text-center p-6">
+                <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 text-slate-300">
+                    <Trophy size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tighter mb-2">Farzandni tanlang</h2>
+                <p className="text-slate-400 font-medium max-w-xs mb-6">Natijalarni ko'rish uchun dashboarddan farzandingizni tanlang.</p>
+                <button onClick={() => navigate('/parent/dashboard')} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-colors">
+                    Dashboardga qaytish
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -69,7 +101,7 @@ const ChildPerformance = () => {
                     </div>
                     <div>
                         <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">O'rtacha Baho</p>
-                        <p className="text-2xl font-black text-slate-900">{grades.length > 0 ? (grades.reduce((sum, g) => sum + (parseFloat(g.score) || 0), 0) / grades.length).toFixed(1) : '—'}</p>
+                        <p className="text-2xl font-black text-slate-900">{grades.length > 0 ? Math.round(grades.reduce((sum, g) => sum + parseScore(g.score), 0) / grades.length) + '%' : '—'}</p>
                     </div>
                 </div>
                 <div className="glass-card p-6 bg-blue-50 border-blue-100 flex items-center gap-4">
@@ -120,10 +152,10 @@ const ChildPerformance = () => {
                                     </span>
                                 </TableCell>
                                 <TableCell>
-                                    <span className={`px-3 py-1 rounded-xl text-sm font-black shadow-sm ${parseFloat(grade.score) >= 90 ? 'bg-emerald-500 text-white' :
-                                            parseFloat(grade.score) >= 70 ? 'bg-blue-500 text-white' : 'bg-amber-500 text-white'
+                                    <span className={`px-3 py-1 rounded-xl text-sm font-black shadow-sm ${parseScore(grade.score) >= 90 ? 'bg-emerald-500 text-white' :
+                                            parseScore(grade.score) >= 70 ? 'bg-blue-500 text-white' : 'bg-amber-500 text-white'
                                         }`}>
-                                        {grade.score}%
+                                        {grade.score}
                                     </span>
                                 </TableCell>
                                 <TableCell className="text-slate-500 font-bold text-xs italic">

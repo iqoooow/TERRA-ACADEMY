@@ -522,7 +522,7 @@ const ParentList = () => {
                                 <div>
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Munosabat turi</label>
                                     <div className="flex gap-2">
-                                        {[{ v: 'father', l: 'Ota' }, { v: 'mother', l: 'Ona' }, { v: 'guardian', l: 'Vasiy' }].map(({ v, l }) => (
+                                        {[{ v: 'parent', l: 'Ota-ona' }, { v: 'guardian', l: 'Vasiy' }, { v: 'other', l: 'Boshqa' }].map(({ v, l }) => (
                                             <button
                                                 key={v} type="button"
                                                 onClick={() => setLinkRelType(v)}
