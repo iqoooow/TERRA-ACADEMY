@@ -4,20 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import LoadingScreen from '../../components/common/LoadingScreen';
-
-const parseScore = (score) => {
-    if (!score) return 0;
-    const s = score.toString().toUpperCase().trim();
-    if (s === 'A1') return 30;
-    if (s === 'A2') return 50;
-    if (s === 'B1') return 65;
-    if (s === 'B2') return 75;
-    if (s === 'C1') return 85;
-    if (s === 'C2') return 95;
-    const num = parseFloat(s);
-    if (!isNaN(num)) return num <= 10 ? num * 10 : num;
-    return 0;
-};
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 
 const ParentDashboard = () => {
     const navigate = useNavigate();
@@ -105,6 +93,7 @@ const ParentDashboard = () => {
             setChildren(childrenWithStats);
         } catch (err) {
             console.error('Error fetching parent dash:', err);
+            toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
         } finally {
             setLoading(false);
         }

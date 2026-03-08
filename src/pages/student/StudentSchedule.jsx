@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Calendar, Clock, User, MapPin, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const StudentSchedule = () => {
     const { user } = useAuth();
@@ -50,6 +51,7 @@ const StudentSchedule = () => {
             }
         } catch (error) {
             console.error('Error fetching schedule:', error);
+            toast.error("Dars jadvalini yuklashda xatolik yuz berdi");
         } finally {
             setLoading(false);
         }

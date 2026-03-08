@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Trophy, Clock, Calendar, TrendingUp, Star, Award, ChevronRight, Zap } from 'lucide-react';
+import { BookOpen, Trophy, Calendar, TrendingUp, Star, ChevronRight, Zap, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import StatsCard from '../../components/ui/StatsCard';
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 import {
     RadialBarChart,
     RadialBar,
@@ -28,23 +30,6 @@ const CustomTooltip = ({ active, payload }) => {
         );
     }
     return null;
-};
-
-const parseScore = (scoreStr) => {
-    if (!scoreStr) return 0;
-    const s = scoreStr.toString().toUpperCase().trim();
-    if (s === 'A1') return 30;
-    if (s === 'A2') return 50;
-    if (s === 'B1') return 65;
-    if (s === 'B2') return 75;
-    if (s === 'C1') return 85;
-    if (s === 'C2') return 95;
-    const num = parseFloat(s);
-    if (!isNaN(num)) {
-        if (num <= 10) return num * 10;
-        if (num <= 100) return num;
-    }
-    return 0;
 };
 
 const StudentDashboard = () => {
@@ -84,6 +69,7 @@ const StudentDashboard = () => {
             const courseCount = groupIds.length;
 
             // 3. Get Real Exams for these groups
+            let formattedExams = [];
             if (groupIds.length > 0) {
                 const { data: exams } = await supabase
                     .from('exams')
@@ -94,13 +80,13 @@ const StudentDashboard = () => {
                     .order('date', { ascending: true })
                     .limit(3);
 
-                const formattedExams = (exams || []).map(e => ({
+                formattedExams = (exams || []).map(e => ({
                     title: e.title,
                     date: new Date(e.date),
                     time: e.time ? e.time.slice(0, 5) : '09:00',
-                    room: e.room || 'TBD',
+                    room: e.room || "Ko'rsatilmagan",
                     type: e.type || 'Exam',
-                    subject: e.groups?.subjects?.name || 'General'
+                    subject: e.groups?.subjects?.name || "Noma'lum"
                 }));
                 setUpcomingExams(formattedExams);
             }
@@ -152,13 +138,14 @@ const StudentDashboard = () => {
 
             // 5. Stats
             setStats([
-                { title: 'O\'rtacha Baho', value: totalCount > 0 ? Math.round(totalSum / totalCount).toString() + '%' : 'N/A', change: '+2%', icon: Trophy, color: 'amber', trendLabel: "joriy holat" },
+                { title: 'O\'rtacha Baho', value: totalCount > 0 ? Math.round(totalSum / totalCount).toString() + '%' : '—', icon: Trophy, color: 'amber', trendLabel: "joriy holat" },
                 { title: 'Faol Kurslar', value: (courseCount || 0).toString(), icon: BookOpen, color: 'blue', trendLabel: "joriy o'quv yili" },
-                { title: 'Reyting', value: '#12', change: '+3', icon: Award, color: 'purple', trendLabel: "maktab bo'yicha" },
+                { title: 'Yaqin Imtihonlar', value: formattedExams.length.toString(), icon: Calendar, color: 'purple', trendLabel: "rejalashtirilgan" },
             ]);
 
         } catch (error) {
             console.error('Error fetching student stats:', error);
+            toast.error("Ma'lumotlarni yuklashda xatolik");
         } finally {
             setLoading(false);
         }

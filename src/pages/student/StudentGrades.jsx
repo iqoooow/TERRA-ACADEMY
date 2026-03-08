@@ -3,6 +3,8 @@ import { GraduationCap, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 
 const TYPE_COLORS = {
     cefr: 'text-indigo-600 bg-indigo-50 border-indigo-100',
@@ -12,23 +14,6 @@ const TYPE_COLORS = {
     quiz: 'text-amber-600 bg-amber-50 border-amber-100',
     homework: 'text-emerald-600 bg-emerald-50 border-emerald-100',
     other: 'text-slate-600 bg-slate-50 border-slate-100',
-};
-
-const parseScore = (scoreStr) => {
-    if (!scoreStr) return 0;
-    const s = scoreStr.toString().toUpperCase().trim();
-    if (s === 'A1') return 30;
-    if (s === 'A2') return 50;
-    if (s === 'B1') return 65;
-    if (s === 'B2') return 75;
-    if (s === 'C1') return 85;
-    if (s === 'C2') return 95;
-    const num = parseFloat(s);
-    if (!isNaN(num)) {
-        if (num <= 10) return num * 10;
-        if (num <= 100) return num;
-    }
-    return 0;
 };
 
 const StudentGrades = () => {
@@ -61,7 +46,7 @@ const StudentGrades = () => {
                 score: g.score,
                 type: g.grade_type || 'other',
                 date: g.date,
-                subject: g.groups?.subjects?.name || g.groups?.name || 'General',
+                subject: g.groups?.subjects?.name || g.groups?.name || "Noma'lum",
                 groupName: g.groups?.name
             }));
 
@@ -91,6 +76,7 @@ const StudentGrades = () => {
 
         } catch (err) {
             console.error(err);
+            toast.error("Baholarni yuklashda xatolik yuz berdi");
         } finally {
             setLoading(false);
         }

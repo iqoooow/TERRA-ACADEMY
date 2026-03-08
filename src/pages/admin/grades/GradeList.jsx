@@ -5,6 +5,8 @@ import Table, { TableRow, TableCell } from '../../../components/ui/Table';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
 import EmptyState from '../../../components/ui/EmptyState';
+import toast from 'react-hot-toast';
+import { parseScore, scoreColorClass } from '../../../utils/parseScore';
 
 const TYPE_LABELS = { cefr: 'CEFR', ielts: 'IELTS', test: 'Test', exam: 'Imtihon', quiz: 'Quiz', homework: 'Uy vazifasi', other: 'Boshqa' };
 
@@ -40,6 +42,7 @@ const GradeList = () => {
             setGrades(rows);
         } catch (e) {
             console.error(e);
+            toast.error("Baholarni yuklashda xatolik yuz berdi");
             setGrades([]);
             setGroups([]);
         } finally {
@@ -69,8 +72,8 @@ const GradeList = () => {
 
     const averageGrade = useMemo(() => {
         if (filtered.length === 0) return 0;
-        const sum = filtered.reduce((acc, g) => acc + (parseFloat(g.score) || 0), 0);
-        return (sum / filtered.length).toFixed(1);
+        const sum = filtered.reduce((acc, g) => acc + parseScore(g.score), 0);
+        return Math.round(sum / filtered.length);
     }, [filtered]);
 
     return (
@@ -116,9 +119,9 @@ const GradeList = () => {
 
             {/* Matrix Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatsCard title="O'rtacha Ball" value={averageGrade} icon={Trophy} color="purple" trend="+2.4%" />
+                <StatsCard title="O'rtacha Ball" value={`${averageGrade}%`} icon={Trophy} color="purple" />
                 <StatsCard title="Jami Baholar" value={filtered.length} icon={Target} color="blue" />
-                <StatsCard title="A'lochi Talabalar" value={filtered.filter(g => parseFloat(g.score) >= 90).length} icon={Star} color="amber" />
+                <StatsCard title="A'lochi Talabalar" value={filtered.filter(g => parseScore(g.score) >= 90).length} icon={Star} color="amber" />
                 <StatsCard title="Imtihonlar" value={filtered.filter(g => g.grade_type === 'exam').length} icon={GraduationCap} color="rose" />
             </div>
 
@@ -195,13 +198,10 @@ const GradeList = () => {
                                 </TableCell>
                                 <TableCell>
                                     <div className="relative inline-block">
-                                        <div className={`px-4 py-2 rounded-2xl font-black text-sm shadow-lg ${parseFloat(r.score) >= 90 ? 'bg-emerald-500 text-white shadow-emerald-500/20' :
-                                            parseFloat(r.score) >= 70 ? 'bg-blue-500 text-white shadow-blue-500/20' :
-                                                'bg-rose-500 text-white shadow-rose-500/20'
-                                            }`}>
-                                            {r.score}{typeof r.score === 'number' || !isNaN(r.score) ? '%' : ''}
+                                        <div className={`px-4 py-2 rounded-2xl font-black text-sm shadow-lg ${scoreColorClass(r.score)}`}>
+                                            {r.score}
                                         </div>
-                                        {parseFloat(r.score) >= 90 && (
+                                        {parseScore(r.score) >= 90 && (
                                             <div className="absolute -top-1 -right-1">
                                                 <Star size={12} className="text-yellow-400 fill-yellow-400 animate-pulse" />
                                             </div>

@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 
 const StudentCourses = () => {
     const { user } = useAuth();
@@ -50,21 +52,7 @@ const StudentCourses = () => {
                     let total = 0;
                     let count = 0;
                     (grades || []).forEach(grade => {
-                        const s = grade.score.toString().toUpperCase().trim();
-                        let val = 0;
-                        if (s === 'A1') val = 30;
-                        else if (s === 'A2') val = 50;
-                        else if (s === 'B1') val = 65;
-                        else if (s === 'B2') val = 75;
-                        else if (s === 'C1') val = 85;
-                        else if (s === 'C2') val = 95;
-                        else {
-                            const num = parseFloat(s);
-                            if (!isNaN(num)) {
-                                if (num <= 10) val = num * 10;
-                                else if (num <= 100) val = num;
-                            }
-                        }
+                        const val = parseScore(grade.score);
                         if (val > 0) {
                             total += val;
                             count++;
@@ -79,19 +67,20 @@ const StudentCourses = () => {
                     return {
                         id: g.id,
                         name: g.name,
-                        subject: g.subjects?.name || 'General',
+                        subject: g.subjects?.name || "Noma'lum",
                         teacher: g.profiles?.full_name || g.profiles?.first_name || 'Ustoz',
-                        level: g.level || 'Standard',
-                        schedule: `${g.schedule_days?.join(', ') || 'Online'} • ${g.time?.slice(0, 5) || '--:--'}`,
-                        room: g.room || 'Online',
+                        level: g.level || '',
+                        schedule: `${g.schedule_days?.join(', ') || "Aniqlanmagan"} • ${g.time?.slice(0, 5) || '--:--'}`,
+                        room: g.room || "Ko'rsatilmagan",
                         progress: progress,
-                        status: 'Active'
+                        status: 'Faol'
                     };
                 }));
 
                 setCourses(formattedCourses);
             } catch (err) {
                 console.error("Error loading courses:", err);
+                toast.error("Kurslarni yuklashda xatolik yuz berdi");
             } finally {
                 setLoading(false);
             }

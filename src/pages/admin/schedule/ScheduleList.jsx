@@ -3,6 +3,7 @@ import { Calendar, Clock, Users, ChevronDown, BookOpen, Layers, Filter, Search }
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
+import toast from 'react-hot-toast';
 
 const ScheduleList = () => {
     const [groups, setGroups] = useState([]);
@@ -80,6 +81,7 @@ const ScheduleList = () => {
             }
         } catch (err) {
             console.error('Error fetching groups:', err);
+            toast.error("Dars jadvallarini yuklashda xatolik");
         } finally {
             setLoading(false);
         }

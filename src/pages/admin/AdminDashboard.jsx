@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, CreditCard, Activity, Download, Calendar, UserPlus, DollarSign, Plus, Shield, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import StatsCard from '../../components/ui/StatsCard';
 import { supabase } from '../../lib/supabase';
+import toast from 'react-hot-toast';
 import {
     AreaChart,
     Area,
@@ -61,10 +62,10 @@ const AdminDashboard = () => {
             const currentRevenue = (currentMonthTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
             setStats([
-                { title: "Jami O'quvchilar", value: studentCount || 0, change: '+12%', icon: GraduationCap, color: 'indigo', trendLabel: "o'tgan oyga nisbatan" },
-                { title: "O'qituvchilar", value: teacherCount || 0, change: 'Stabil', icon: Users, color: 'violet', trendLabel: "joriy holat" },
+                { title: "Jami O'quvchilar", value: studentCount || 0, icon: GraduationCap, color: 'indigo', trendLabel: "tizimda ro'yxatdan o'tgan" },
+                { title: "O'qituvchilar", value: teacherCount || 0, icon: Users, color: 'violet', trendLabel: "faol o'qituvchilar" },
                 { title: 'Joriy Tushum', value: `${(currentRevenue / 1000000).toFixed(1)}M`, change: format(new Date(), 'MMMM', { locale: uz }), icon: CreditCard, color: 'emerald', trendLabel: "oylik hisobot" },
-                { title: 'Faol Guruhlar', value: groupCount || 0, change: '+2', icon: Activity, color: 'amber', trendLabel: "yangi guruhlar" },
+                { title: 'Faol Guruhlar', value: groupCount || 0, icon: Activity, color: 'amber', trendLabel: "jami guruhlar" },
             ]);
 
             // 3. Prepare Chart Data (Last 6 Months)
@@ -124,6 +125,7 @@ const AdminDashboard = () => {
 
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
+            toast.error("Dashboard ma'lumotlarini yuklashda xatolik");
         } finally {
             setLoading(false);
         }

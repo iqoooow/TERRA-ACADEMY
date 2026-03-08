@@ -4,12 +4,30 @@ import { supabase } from '../../../lib/supabase';
 import { motion } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
+import toast from 'react-hot-toast';
 
 const statusLabel = { present: "Keldi", absent: "Kelmadi", late: "Kechikdi" };
 const statusBadge = {
     present: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20',
     absent: 'bg-rose-500 text-white shadow-lg shadow-rose-500/20',
     late: 'bg-amber-500 text-white shadow-lg shadow-amber-500/20',
+};
+
+// Static class maps — Tailwind requires full class names to be statically present
+const badgeWrapClass = {
+    emerald: 'px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3',
+    rose: 'px-4 py-2 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3',
+    amber: 'px-4 py-2 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3',
+};
+const badgeDotClass = {
+    emerald: 'w-2 h-2 rounded-full bg-emerald-500',
+    rose: 'w-2 h-2 rounded-full bg-rose-500',
+    amber: 'w-2 h-2 rounded-full bg-amber-500',
+};
+const badgeTextClass = {
+    emerald: 'text-[10px] font-black text-emerald-700 uppercase tracking-widest',
+    rose: 'text-[10px] font-black text-rose-700 uppercase tracking-widest',
+    amber: 'text-[10px] font-black text-amber-700 uppercase tracking-widest',
 };
 
 const AttendanceList = () => {
@@ -47,7 +65,7 @@ const AttendanceList = () => {
                         byGroup[gid] = {
                             id: gid,
                             name: row.groups?.name || '—',
-                            subject: row.groups?.subjects?.name || 'Inomish',
+                            subject: row.groups?.subjects?.name || "Noma'lum",
                             students: [],
                         };
                     }
@@ -64,6 +82,7 @@ const AttendanceList = () => {
                 setReport(Object.values(byGroup).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
             } catch (err) {
                 console.error('Error fetching attendance report:', err);
+                toast.error("Davomat ma'lumotlarini yuklashda xatolik");
                 setReport([]);
             } finally {
                 setLoading(false);
@@ -232,9 +251,9 @@ const AttendanceList = () => {
                                         { label: 'Kelmadi', count: group.students.filter(s => s.status === 'absent').length, color: 'rose' },
                                         { label: 'Kechikdi', count: group.students.filter(s => s.status === 'late').length, color: 'amber' }
                                     ].map((badge) => (
-                                        <div key={badge.label} className={`px-4 py-2 bg-${badge.color}-50 border border-${badge.color}-100 rounded-2xl flex items-center gap-3`}>
-                                            <div className={`w-2 h-2 rounded-full bg-${badge.color}-500 shadow-[0_0_10px_rgba(var(--color-${badge.color}-500),0.5)]`}></div>
-                                            <span className={`text-[10px] font-black text-${badge.color}-700 uppercase tracking-widest`}>{badge.count} {badge.label}</span>
+                                        <div key={badge.label} className={badgeWrapClass[badge.color]}>
+                                            <div className={badgeDotClass[badge.color]}></div>
+                                            <span className={badgeTextClass[badge.color]}>{badge.count} {badge.label}</span>
                                         </div>
                                     ))}
                                     <button className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">

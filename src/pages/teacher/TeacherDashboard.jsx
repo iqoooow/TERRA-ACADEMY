@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/ui/StatsCard';
 import { Users, BookOpen, Clock, Calendar, TrendingUp, Sparkles, ClipboardCheck, Star, FileText, BarChart2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 import {
     BarChart,
     Bar,
@@ -34,24 +36,6 @@ const CustomTooltip = ({ active, payload, label }) => {
         );
     }
     return null;
-};
-
-// Helper to parse diverse grade formats
-const parseScore = (scoreStr) => {
-    if (!scoreStr) return 0;
-    const s = scoreStr.toString().toUpperCase().trim();
-    if (s === 'A1') return 30;
-    if (s === 'A2') return 50;
-    if (s === 'B1') return 65;
-    if (s === 'B2') return 75;
-    if (s === 'C1') return 85;
-    if (s === 'C2') return 95;
-    const num = parseFloat(s);
-    if (!isNaN(num)) {
-        if (num <= 10) return num * 10;
-        if (num <= 100) return num;
-    }
-    return 0;
 };
 
 const TeacherDashboard = () => {
@@ -179,6 +163,7 @@ const TeacherDashboard = () => {
 
         } catch (error) {
             console.error('Error fetching teacher stats:', error);
+            toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
         } finally {
             setLoading(false);
         }

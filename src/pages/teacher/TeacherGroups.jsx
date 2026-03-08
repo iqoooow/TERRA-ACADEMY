@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import { parseScore } from '../../utils/parseScore';
 
 const TeacherGroups = () => {
     const { user } = useAuth();
@@ -44,23 +46,7 @@ const TeacherGroups = () => {
                     let count = 0;
 
                     (grades || []).forEach(g => {
-                        // Robust parsing
-                        const s = g.score.toString().toUpperCase().trim();
-                        let val = 0;
-                        if (s === 'A1') val = 30;
-                        else if (s === 'A2') val = 50;
-                        else if (s === 'B1') val = 65;
-                        else if (s === 'B2') val = 75;
-                        else if (s === 'C1') val = 85;
-                        else if (s === 'C2') val = 95;
-                        else {
-                            const num = parseFloat(s);
-                            if (!isNaN(num)) {
-                                if (num <= 10) val = num * 10;
-                                else if (num <= 100) val = num;
-                            }
-                        }
-
+                        const val = parseScore(g.score);
                         if (val > 0) {
                             totalScore += val;
                             count++;
@@ -72,11 +58,11 @@ const TeacherGroups = () => {
                     return {
                         id: group.id,
                         name: group.name,
-                        subject: group.subjects?.name || 'General',
-                        level: 'Standard',
+                        subject: group.subjects?.name || "Noma'lum",
+                        level: group.level || '',
                         students: group.enrollments?.length || 0,
-                        schedule: `${group.schedule_days?.join(', ') || 'TBD'} • ${group.time?.slice(0, 5) || '--:--'}`,
-                        room: group.room || 'Online',
+                        schedule: `${group.schedule_days?.join(', ') || "Aniqlanmagan"} • ${group.time?.slice(0, 5) || '--:--'}`,
+                        room: group.room || "Ko'rsatilmagan",
                         progress: progress
                     };
                 }));
@@ -84,6 +70,7 @@ const TeacherGroups = () => {
                 setGroups(groupsWithStats);
             } catch (err) {
                 console.error('Error fetching groups:', err);
+                toast.error("Guruhlarni yuklashda xatolik yuz berdi");
             } finally {
                 setLoading(false);
             }
