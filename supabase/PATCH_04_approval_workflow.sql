@@ -16,5 +16,3 @@ ADD COLUMN IF NOT EXISTS approval_status TEXT DEFAULT 'pending'
 -- 3. Mark all existing records as approved (legacy data)
 UPDATE public.grades SET approval_status = 'approved' WHERE approval_status IS NULL;
 UPDATE public.attendance SET approval_status = 'approved' WHERE approval_status IS NULL;
-
-RAISE NOTICE 'PATCH 04 applied: approval_status added to grades and attendance';

@@ -16,7 +16,7 @@ const TeacherAttendance = () => {
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [saving, setSaving] = useState(false);
     const [examEvent, setExamEvent] = useState(null);
-    const [isApproved, setIsApproved] = useState(false);
+    const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
         const fetchGroups = async () => {
@@ -73,15 +73,14 @@ const TeacherAttendance = () => {
                 // 2. Fetch Existing Attendance
                 const { data: attData, error: attError } = await supabase
                     .from('attendance')
-                    .select('student_id, status, approval_status')
+                    .select('student_id, status')
                     .eq('group_id', selectedGroup)
                     .eq('date', date);
 
                 if (attError) throw attError;
 
-                // Check if any record is approved → lock the form
-                const approved = (attData || []).some(a => a.approval_status === 'approved');
-                setIsApproved(approved);
+                // Lock if records already exist for this date
+                setIsLocked((attData || []).length > 0);
 
                 const map = {};
                 (attData || []).forEach((a) => { map[a.student_id] = a.status; });
@@ -121,8 +120,8 @@ const TeacherAttendance = () => {
     };
 
     const handleSave = async () => {
-        if (isApproved) {
-            toast.error("Bu sananing davomati tasdiqlangan. Admin bilan bog'laning.");
+        if (isLocked) {
+            toast.error("Bu sananing davomati allaqachon saqlangan. O'zgartirib bo'lmaydi.");
             return;
         }
         if (!selectedGroup || !date || !user?.id) return;
@@ -301,9 +300,9 @@ const TeacherAttendance = () => {
                         )}
                     </AnimatePresence>
 
-                    {isApproved ? (
-                        <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                            <ShieldCheck size={18} /> Tasdiqlangan — o'zgartirib bo'lmaydi
+                    {isLocked ? (
+                        <div className="w-full py-4 bg-slate-100 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                            <ShieldCheck size={18} /> Saqlangan — o'zgartirib bo'lmaydi
                         </div>
                     ) : (
                         <button
@@ -365,11 +364,11 @@ const TeacherAttendance = () => {
                                                 ].map((opt) => (
                                                     <button
                                                         key={opt.id}
-                                                        onClick={() => !isApproved && setStatus(s.id, opt.id)}
-                                                        disabled={isApproved}
+                                                        onClick={() => !isLocked && setStatus(s.id, opt.id)}
+                                                        disabled={isLocked}
                                                         className={`
                                                             flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm transition-all duration-300
-                                                            ${isApproved ? 'cursor-not-allowed opacity-60' : ''}
+                                                            ${isLocked ? 'cursor-not-allowed opacity-60' : ''}
                                                             ${status === opt.id
                                                                 ? `bg-${opt.color}-500 text-white shadow-lg shadow-${opt.color}-500/30 scale-105`
                                                                 : `text-slate-400 hover:bg-slate-200 hover:text-slate-600`

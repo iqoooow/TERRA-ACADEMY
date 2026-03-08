@@ -181,32 +181,23 @@ export const AuthProvider = ({ children }) => {
                 ? usernameOrEmail
                 : `${usernameOrEmail.trim().toLowerCase()}@terra.academy`;
 
-            // Use backend API for login (CORS-friendly)
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: authEmail, password }),
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: authEmail,
+                password,
             });
 
-            if (!response.ok) {
+            if (authError || !data?.user) {
                 return { success: false, error: "Login yoki parol noto'g'ri" };
             }
 
-            const { session, user: authUser } = await response.json();
-
-            // Store session in supabase client
-            if (session) {
-                await supabase.auth.setSession(session);
-            }
-
-            const enriched = await fetchProfile(authUser);
+            const enriched = await fetchProfile(data.user);
             const role = enriched?.role || 'student';
             const status = enriched?.status || 'pending';
             const isSystemRole = ['owner', 'admin'].includes(role);
 
             if (!isSystemRole && status !== 'approved') {
                 await supabase.auth.signOut();
-                fetchCache.delete(authUser?.id);
+                fetchCache.delete(data.user?.id);
                 if (status === 'rejected') {
                     return { success: false, error: 'Hisobingiz bloklangan. Administrator bilan bog\'laning.' };
                 }

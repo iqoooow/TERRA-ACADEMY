@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, Plus, Loader2, X, Trash2, CheckCircle2, Award, Zap, ChevronDown, Calendar, Filter, FileText, Clock, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Plus, Loader2, X, Trash2, CheckCircle2, Award, Zap, ChevronDown, Calendar, Filter, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,7 +77,7 @@ const TeacherGrades = () => {
                     supabase
                         .from('grades')
                         .select(`
-                            id, student_id, title, score, grade_type, date, approval_status,
+                            id, student_id, title, score, grade_type, date,
                             profiles!student_id (full_name, first_name, last_name)
                         `)
                         .eq('group_id', selectedGroup)
@@ -128,7 +128,7 @@ const TeacherGrades = () => {
         const { data, error } = await supabase
             .from('grades')
             .select(`
-                id, student_id, title, score, grade_type, date, approval_status,
+                id, student_id, title, score, grade_type, date,
                 profiles!student_id (full_name, first_name, last_name)
             `)
             .eq('group_id', selectedGroup)
@@ -170,11 +170,7 @@ const TeacherGrades = () => {
         }
     };
 
-    const handleDelete = async (id, approvalStatus) => {
-        if (approvalStatus === 'approved') {
-            toast.error("Tasdiqlangan bahoni o'chirib bo'lmaydi. Admin bilan bog'laning.");
-            return;
-        }
+    const handleDelete = async (id) => {
         if (!confirm('Ushbu bahoni o\'chirishni xohlaysizmi?')) return;
         try {
             const { error } = await supabase.from('grades').delete().eq('id', id);
@@ -323,29 +319,15 @@ const TeacherGrades = () => {
                                     <p className="text-sm font-medium text-slate-500">{r.title}</p>
                                 </div>
 
-                                {/* Score + Status + Delete */}
+                                {/* Score + Delete */}
                                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                                     <div className="px-6 py-2 bg-slate-900 text-white rounded-xl font-black text-lg shadow-lg shadow-slate-900/10">
                                         {r.score}
                                     </div>
-                                    {r.approval_status === 'approved' ? (
-                                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                                            <ShieldCheck size={12} /> Tasdiqlangan
-                                        </span>
-                                    ) : r.approval_status === 'rejected' ? (
-                                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100">
-                                            Rad etilgan
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100">
-                                            <Clock size={12} /> Kutilmoqda
-                                        </span>
-                                    )}
                                     <button
-                                        onClick={() => handleDelete(r.id, r.approval_status)}
-                                        disabled={r.approval_status === 'approved'}
-                                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title={r.approval_status === 'approved' ? "Tasdiqlangan — o'chirib bo'lmaydi" : "O'chirish"}
+                                        onClick={() => handleDelete(r.id)}
+                                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-colors"
+                                        title="O'chirish"
                                     >
                                         <Trash2 size={18} />
                                     </button>
