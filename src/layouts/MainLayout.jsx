@@ -62,6 +62,7 @@ const MainLayout = () => {
             'registration-requests': "Arizalar",
             'courses': "Kurslar",
             'grades': "Baholar",
+            'approvals': "Tasdiqlash Markazi",
             'exams': "Imtihonlar",
             'payments': "To'lovlar",
             'children': "Farzandlar",

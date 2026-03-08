@@ -20,6 +20,7 @@ import {
     ChevronRight,
     ChevronDown,
     PieChart,
+    ShieldCheck,
     Sparkles,
     Shield
 } from 'lucide-react';
@@ -70,6 +71,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Dars jadvali', path: '/admin/schedule', icon: Calendar },
             { name: 'Davomat', path: '/admin/attendance', icon: CalendarCheck },
             { name: 'Baholar', path: '/admin/grades', icon: PieChart },
+            { name: 'Tasdiqlash', path: '/admin/approvals', icon: ShieldCheck },
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 

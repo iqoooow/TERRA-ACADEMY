@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Check, X, Clock, Loader2, Users, ChevronDown, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Check, X, Clock, Loader2, Users, ChevronDown, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ const TeacherAttendance = () => {
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [saving, setSaving] = useState(false);
     const [examEvent, setExamEvent] = useState(null);
+    const [isApproved, setIsApproved] = useState(false);
 
     useEffect(() => {
         const fetchGroups = async () => {
@@ -72,11 +73,15 @@ const TeacherAttendance = () => {
                 // 2. Fetch Existing Attendance
                 const { data: attData, error: attError } = await supabase
                     .from('attendance')
-                    .select('student_id, status')
+                    .select('student_id, status, approval_status')
                     .eq('group_id', selectedGroup)
                     .eq('date', date);
 
                 if (attError) throw attError;
+
+                // Check if any record is approved → lock the form
+                const approved = (attData || []).some(a => a.approval_status === 'approved');
+                setIsApproved(approved);
 
                 const map = {};
                 (attData || []).forEach((a) => { map[a.student_id] = a.status; });
@@ -116,6 +121,10 @@ const TeacherAttendance = () => {
     };
 
     const handleSave = async () => {
+        if (isApproved) {
+            toast.error("Bu sananing davomati tasdiqlangan. Admin bilan bog'laning.");
+            return;
+        }
         if (!selectedGroup || !date || !user?.id) return;
         setSaving(true);
         try {
@@ -292,14 +301,20 @@ const TeacherAttendance = () => {
                         )}
                     </AnimatePresence>
 
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || loadingStudents || students.length === 0}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
-                    >
-                        {saving ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
-                        {saving ? 'Saqlanmoqda...' : 'Saqlash'}
-                    </button>
+                    {isApproved ? (
+                        <div className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                            <ShieldCheck size={18} /> Tasdiqlangan — o'zgartirib bo'lmaydi
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleSave}
+                            disabled={saving || loadingStudents || students.length === 0}
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                        >
+                            {saving ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+                            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                        </button>
+                    )}
                 </motion.div>
 
                 {/* Student List */}
@@ -350,9 +365,11 @@ const TeacherAttendance = () => {
                                                 ].map((opt) => (
                                                     <button
                                                         key={opt.id}
-                                                        onClick={() => setStatus(s.id, opt.id)}
+                                                        onClick={() => !isApproved && setStatus(s.id, opt.id)}
+                                                        disabled={isApproved}
                                                         className={`
                                                             flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm transition-all duration-300
+                                                            ${isApproved ? 'cursor-not-allowed opacity-60' : ''}
                                                             ${status === opt.id
                                                                 ? `bg-${opt.color}-500 text-white shadow-lg shadow-${opt.color}-500/30 scale-105`
                                                                 : `text-slate-400 hover:bg-slate-200 hover:text-slate-600`

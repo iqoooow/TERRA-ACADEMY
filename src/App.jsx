@@ -33,6 +33,7 @@ const FinancialCenter = lazy(() => import('./pages/admin/finance/FinancialCenter
 const ScheduleList = lazy(() => import('./pages/admin/schedule/ScheduleList'));
 const AttendanceList = lazy(() => import('./pages/admin/attendance/AttendanceList'));
 const GradeList = lazy(() => import('./pages/admin/grades/GradeList'));
+const ApprovalCenter = lazy(() => import('./pages/admin/approvals/ApprovalCenter'));
 
 // Teacher Pages
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'));
@@ -105,6 +106,7 @@ function App() {
                 <Route path="/admin/schedule" element={<ScheduleList />} />
                 <Route path="/admin/attendance" element={<AttendanceList />} />
                 <Route path="/admin/grades" element={<GradeList />} />
+                <Route path="/admin/approvals" element={<ApprovalCenter />} />
                 <Route path="/admin/payments" element={<FinancialCenter />} />
               </Route>
             </Route>
