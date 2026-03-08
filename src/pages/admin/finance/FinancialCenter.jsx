@@ -6,7 +6,7 @@ import {
     ShieldAlert, CheckCircle2, Download, Banknote, Smartphone,
     Building2, Wallet, ChevronDown, Calendar, ArrowDownLeft,
     PieChart, Receipt, Printer, Clock,
-    FileText, Zap, AlertCircle
+    FileText, Zap, AlertCircle, Bell, Phone, CheckCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,7 +36,8 @@ const STATUS_CONFIG = {
 };
 
 const FinancialCenter = () => {
-    const [activeTab, setActiveTab] = useState('billing'); // 'billing', 'transactions', 'analytics'
+    const [activeTab, setActiveTab] = useState('billing'); // 'billing', 'transactions', 'analytics', 'reminders'
+    const [reminded, setReminded] = useState(new Set()); // rowKeys marked as reminded this session
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState([]);
     const [payments, setPayments] = useState({});
@@ -308,6 +309,7 @@ const FinancialCenter = () => {
                         { id: 'billing', label: 'Boshqaruv Paneli', icon: Users },
                         { id: 'transactions', label: 'Tranzaksiyalar', icon: Receipt },
                         { id: 'analytics', label: 'Analytics Hub', icon: PieChart },
+                        { id: 'reminders', label: "To'lovni Eslatish", icon: Bell },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -628,6 +630,117 @@ const FinancialCenter = () => {
                         </div>
                     </motion.div>
                 )}
+
+                {activeTab === 'reminders' && (() => {
+                    const unpaidStudents = students.filter(s => {
+                        const status = payments[`${s.id}_${s.group?.id || 'null'}`]?.status;
+                        return status === 'pending' || status === 'overdue' || !status;
+                    });
+                    return (
+                        <motion.div
+                            key="reminders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                            className="space-y-4"
+                        >
+                            {/* Header */}
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center">
+                                        <Bell size={22} className="text-amber-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-900">To'lovni Eslatish</h3>
+                                        <p className="text-slate-400 text-sm font-medium">
+                                            {MONTHS[selectedMonth - 1]} {selectedYear} — <span className="text-amber-600 font-black">{unpaidStudents.length} nafar</span> to'lamagan
+                                        </p>
+                                    </div>
+                                </div>
+                                {reminded.size > 0 && (
+                                    <div className="px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 text-xs font-black uppercase tracking-widest">
+                                        {reminded.size} ta eslatildi
+                                    </div>
+                                )}
+                            </div>
+
+                            {unpaidStudents.length === 0 ? (
+                                <div className="py-24 flex flex-col items-center bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                    <CheckCheck size={48} className="text-emerald-300 mb-4" />
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Barcha o'quvchilar to'lagan</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {unpaidStudents.map((s, i) => {
+                                        const payKey = `${s.id}_${s.group?.id || 'null'}`;
+                                        const pay = payments[payKey];
+                                        const status = pay?.status || 'pending';
+                                        const cfg = STATUS_CONFIG[status];
+                                        const groupPrice = s.group?.price || 0;
+                                        const expected = pay?.final_amount || pay?.amount || groupPrice;
+                                        const paid = pay?.paid_amount || 0;
+                                        const debt = expected - paid;
+                                        const isReminded = reminded.has(payKey);
+
+                                        return (
+                                            <motion.div
+                                                key={payKey}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: i * 0.03 }}
+                                                className={cn(
+                                                    "bg-white p-5 rounded-[1.5rem] border transition-all flex flex-col sm:flex-row items-start sm:items-center gap-4",
+                                                    isReminded ? "border-emerald-100 bg-emerald-50/30" : "border-slate-100 hover:border-amber-100 hover:shadow-md"
+                                                )}
+                                            >
+                                                {/* Avatar */}
+                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 font-black text-lg flex items-center justify-center shrink-0">
+                                                    {s.full_name?.charAt(0) || '?'}
+                                                </div>
+
+                                                {/* Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <span className="font-black text-slate-900">{s.full_name}</span>
+                                                        <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border", cfg.bg, cfg.text, cfg.border)}>
+                                                            {cfg.label}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-500 font-medium">{s.group?.name || 'Guruhsiz'}</p>
+                                                    {s.phone && (
+                                                        <a href={`tel:${s.phone}`} className="flex items-center gap-1 text-xs text-slate-400 font-bold mt-1 hover:text-blue-500 transition-colors w-fit">
+                                                            <Phone size={11} /> {s.phone}
+                                                        </a>
+                                                    )}
+                                                </div>
+
+                                                {/* Debt */}
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Qarz</p>
+                                                    <p className="text-xl font-black text-rose-500 tabular-nums">{debt.toLocaleString()} <span className="text-xs font-bold">uzs</span></p>
+                                                </div>
+
+                                                {/* Button */}
+                                                {isReminded ? (
+                                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest shrink-0">
+                                                        <CheckCheck size={14} /> Eslatildi
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => {
+                                                            setReminded(prev => new Set([...prev, payKey]));
+                                                            toast.success(`${s.full_name} ga eslatma belgilandi`);
+                                                        }}
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shrink-0"
+                                                    >
+                                                        <Bell size={14} /> Eslatish
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </motion.div>
+                    );
+                })()}
             </AnimatePresence>
 
             {/* ── Transaction Modal ── */}
