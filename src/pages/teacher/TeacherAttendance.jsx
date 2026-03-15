@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Check, X, Clock, Loader2, Users, ChevronDown, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { smsService } from '../../lib/smsService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -144,6 +145,16 @@ const TeacherAttendance = () => {
 
             if (error) throw error;
             toast.success('Davomat muvaffaqiyatli saqlandi!');
+
+            // SMS: absent o'quvchilar ota-onasiga xabar yuborish (fire-and-forget)
+            const absentIds = Object.entries(attendance)
+                .filter(([, status]) => status === 'absent')
+                .map(([id]) => id);
+
+            if (absentIds.length > 0) {
+                smsService.sendAttendanceSMS(absentIds, selectedGroup, date)
+                    .catch(err => console.error('SMS error:', err));
+            }
         } catch (err) {
             console.error('Error saving attendance:', err);
             toast.error('Saqlashda xatolik yuz berdi');
@@ -166,9 +177,8 @@ const TeacherAttendance = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Header */}
-            <div className="flex flex-col xl:flex-row justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-900 opacity-90"></div>
-                <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[80px]"></div>
+            <div className="flex flex-col xl:flex-row justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-lg relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 opacity-95"></div>
 
                 <div className="relative z-10 flex flex-col justify-center">
                     <motion.div
@@ -358,22 +368,15 @@ const TeacherAttendance = () => {
 
                                             <div className="flex bg-slate-50 p-1.5 rounded-xl gap-1 w-full sm:w-auto flex-1 sm:flex-none justify-center sm:justify-end sm:ml-auto">
                                                 {[
-                                                    { id: 'present', icon: Check, label: 'Keldi', color: 'green' },
-                                                    { id: 'late', icon: Clock, label: 'Kech', color: 'amber' },
-                                                    { id: 'absent', icon: X, label: 'Yo\'q', color: 'rose' },
+                                                    { id: 'present', icon: Check, label: 'Keldi', activeClass: 'bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105' },
+                                                    { id: 'late', icon: Clock, label: 'Kech', activeClass: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30 scale-105' },
+                                                    { id: 'absent', icon: X, label: "Yo'q", activeClass: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 scale-105' },
                                                 ].map((opt) => (
                                                     <button
                                                         key={opt.id}
                                                         onClick={() => !isLocked && setStatus(s.id, opt.id)}
                                                         disabled={isLocked}
-                                                        className={`
-                                                            flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm transition-all duration-300
-                                                            ${isLocked ? 'cursor-not-allowed opacity-60' : ''}
-                                                            ${status === opt.id
-                                                                ? `bg-${opt.color}-500 text-white shadow-lg shadow-${opt.color}-500/30 scale-105`
-                                                                : `text-slate-400 hover:bg-slate-200 hover:text-slate-600`
-                                                            }
-                                                        `}
+                                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm transition-all duration-300 ${isLocked ? 'cursor-not-allowed opacity-60' : ''} ${status === opt.id ? opt.activeClass : 'text-slate-400 hover:bg-slate-200 hover:text-slate-600'}`}
                                                     >
                                                         <opt.icon size={18} strokeWidth={3} />
                                                         <span className="hidden sm:inline">{opt.label}</span>

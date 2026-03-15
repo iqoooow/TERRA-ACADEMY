@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { smsService } from '../../../lib/smsService';
 import {
     Search, Activity, Users, X,
     PlusCircle, CreditCard, RefreshCw, TrendingUp, ArrowUpRight,
@@ -193,6 +194,9 @@ const FinancialCenter = () => {
             // Show receipt
             setReceiptData(newTx);
             setShowReceipt(true);
+
+            // Send payment confirmed SMS (fire-and-forget)
+            smsService.sendPaymentConfirmed(selectedStudent.id).catch(() => {});
 
             fetchData();
         } catch (err) {
@@ -724,9 +728,19 @@ const FinancialCenter = () => {
                                                     </div>
                                                 ) : (
                                                     <button
-                                                        onClick={() => {
-                                                            setReminded(prev => new Set([...prev, payKey]));
-                                                            toast.success(`${s.full_name} ga eslatma belgilandi`);
+                                                        onClick={async () => {
+                                                            const tid = toast.loading('SMS yuborilmoqda...');
+                                                            try {
+                                                                const data = await smsService.sendPaymentReminder([s.id]);
+                                                                if (data?.sent > 0) {
+                                                                    setReminded(prev => new Set([...prev, payKey]));
+                                                                    toast.success("SMS muvaffaqiyatli yuborildi!", { id: tid });
+                                                                } else {
+                                                                    toast.error("Telefon raqami topilmadi yoki SMS blokda", { id: tid });
+                                                                }
+                                                            } catch {
+                                                                toast.error("SMS yuborishda xatolik", { id: tid });
+                                                            }
                                                         }}
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 shrink-0"
                                                     >

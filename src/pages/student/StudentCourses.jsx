@@ -23,9 +23,8 @@ const StudentCourses = () => {
                     .select(`
                         id,
                         groups (
-                            id, 
-                            name, 
-                            level,
+                            id,
+                            name,
                             schedule_days,
                             time,
                             room,
@@ -69,7 +68,6 @@ const StudentCourses = () => {
                         name: g.name,
                         subject: g.subjects?.name || "Noma'lum",
                         teacher: g.profiles?.full_name || g.profiles?.first_name || 'Ustoz',
-                        level: g.level || '',
                         schedule: `${g.schedule_days?.join(', ') || "Aniqlanmagan"} • ${g.time?.slice(0, 5) || '--:--'}`,
                         room: g.room || "Ko'rsatilmagan",
                         progress: progress,
@@ -105,9 +103,9 @@ const StudentCourses = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-slate-900 to-cyan-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-                <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/20 rounded-full blur-[80px]"></div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-lg relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-800 via-slate-900 to-slate-900"></div>
+                <div className="absolute -top-10 -right-10 w-48 h-48 bg-blue-400/10 rounded-full blur-[60px] pointer-events-none"></div>
 
                 <div className="relative z-10">
                     <motion.div
@@ -150,7 +148,7 @@ const StudentCourses = () => {
                             key={course.id}
                             variants={item}
                             whileHover={{ y: -5 }}
-                            className="group bg-white p-6 rounded-[2rem] border border-slate-100 hover:border-cyan-200 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 relative overflow-hidden flex flex-col"
+                            className="group bg-white p-6 rounded-[2rem] border border-slate-100 hover:border-cyan-200 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden flex flex-col"
                         >
                             <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-cyan-50 hover:text-cyan-600 transition-colors">

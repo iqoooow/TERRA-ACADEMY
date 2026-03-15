@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, User, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Users, BarChart3, HelpCircle, Phone, X, MessageCircle, KeyRound, CheckCircle2 } from 'lucide-react';
@@ -26,15 +26,35 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [forgotUsername, setForgotUsername] = useState('');
-    const [forgotStep, setForgotStep] = useState(1); // 1=input, 2=success
+    const [forgotStep, setForgotStep] = useState(1);
     const [forgotLoading, setForgotLoading] = useState(false);
+    const [siteStats, setSiteStats] = useState({ students: '...', teachers: '...', success: '98%' });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const [{ count: students }, { count: teachers }] = await Promise.all([
+                    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+                    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
+                ]);
+                setSiteStats({
+                    students: students ? `${students}+` : '0',
+                    teachers: teachers ? `${teachers}+` : '0',
+                    success: '98%',
+                });
+            } catch {
+                setSiteStats({ students: '—', teachers: '—', success: '98%' });
+            }
+        };
+        fetchStats();
+    }, []);
 
     const handleForgotSubmit = async () => {
         const trimmed = forgotUsername.trim().toLowerCase();
         if (!trimmed) return;
         setForgotLoading(true);
         try {
-            const { data } = await supabase
+            await supabase
                 .from('profiles')
                 .select('id')
                 .eq('login_username', trimmed)
@@ -153,9 +173,9 @@ const Login = () => {
                         className="flex items-center gap-6 pt-8 border-t border-white/5"
                     >
                         {[
-                            { val: '500+', label: "O'quvchilar" },
-                            { val: '50+', label: "O'qituvchilar" },
-                            { val: '98%', label: 'Muvaffaqiyat' },
+                            { val: siteStats.students, label: "O'quvchilar" },
+                            { val: siteStats.teachers, label: "O'qituvchilar" },
+                            { val: siteStats.success, label: 'Muvaffaqiyat' },
                         ].map(({ val, label }) => (
                             <div key={label}>
                                 <div className="text-xl font-black text-white">{val}</div>

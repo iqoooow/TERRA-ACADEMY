@@ -63,9 +63,9 @@ const Register = () => {
     }, []);
 
     const roles = [
-        { id: 'teacher', title: "O'qituvchi", icon: GraduationCap, description: 'Darslarni boshqarish, baholash va o\'quvchilar bilan ishlash', color: 'blue' },
-        { id: 'student', title: "O'quvchi", icon: UserRound, description: 'Bilim olish, vazifalarni bajarish va natijalarni kuzatish', color: 'indigo' },
-        { id: 'parent', title: 'Ota-ona', icon: Users, description: 'Farzand davomati, baholari va to\'lovlarini nazorat qilish', color: 'purple' }
+        { id: 'teacher', title: "O'qituvchi", icon: GraduationCap, description: "Darslarni boshqarish, baholash va o'quvchilar bilan ishlash", iconBox: 'p-8 bg-white/5 rounded-[2.5rem] mb-8 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-2xl group-hover:shadow-blue-500/40 text-blue-400', btn: 'inline-flex items-center gap-3 px-8 py-3 bg-white/5 text-white group-hover:bg-blue-600 group-hover:text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-transparent' },
+        { id: 'student', title: "O'quvchi", icon: UserRound, description: "Bilim olish, vazifalarni bajarish va natijalarni kuzatish", iconBox: 'p-8 bg-white/5 rounded-[2.5rem] mb-8 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-2xl group-hover:shadow-indigo-500/40 text-indigo-400', btn: 'inline-flex items-center gap-3 px-8 py-3 bg-white/5 text-white group-hover:bg-indigo-600 group-hover:text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-transparent' },
+        { id: 'parent', title: 'Ota-ona', icon: Users, description: "Farzand davomati, baholari va to'lovlarini nazorat qilish", iconBox: 'p-8 bg-white/5 rounded-[2.5rem] mb-8 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-500 shadow-2xl group-hover:shadow-purple-500/40 text-purple-400', btn: 'inline-flex items-center gap-3 px-8 py-3 bg-white/5 text-white group-hover:bg-purple-600 group-hover:text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-transparent' }
     ];
 
     const handleRoleSelect = (roleId) => {
@@ -245,12 +245,12 @@ const Register = () => {
                                     onClick={() => handleRoleSelect(role.id)}
                                     className="group relative bg-white/5 backdrop-blur-3xl border border-white/10 p-12 rounded-[3.5rem] hover:bg-white hover:shadow-[0_40px_80px_rgba(0,0,0,0.4)] transition-all duration-500 text-center flex flex-col items-center cursor-pointer overflow-hidden active:scale-95"
                                 >
-                                    <div className={`p-8 bg-white/5 rounded-[2.5rem] mb-8 group-hover:scale-110 group-hover:bg-${role.color}-600 group-hover:text-white transition-all duration-500 shadow-2xl group-hover:shadow-${role.color}-500/40 text-${role.color}-400`}>
+                                    <div className={role.iconBox}>
                                         <role.icon size={56} strokeWidth={1.2} />
                                     </div>
                                     <h3 className="text-3xl font-black text-white group-hover:text-slate-900 mb-4 tracking-tighter transition-colors">{role.title}</h3>
                                     <p className="text-slate-400 group-hover:text-slate-500 font-bold text-xs leading-relaxed mb-10 uppercase tracking-widest">{role.description}</p>
-                                    <div className={`inline-flex items-center gap-3 px-8 py-3 bg-white/5 text-white group-hover:bg-${role.color}-600 group-hover:text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-transparent`}>
+                                    <div className={role.btn}>
                                         Begin Selection <ArrowRight size={16} />
                                     </div>
                                 </button>

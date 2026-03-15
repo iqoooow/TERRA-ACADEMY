@@ -127,9 +127,8 @@ const TeacherExams = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-                <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/20 rounded-full blur-[80px]"></div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 p-8 rounded-[2.5rem] shadow-lg relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-900 opacity-95"></div>
 
                 <div className="relative z-10">
                     <motion.div

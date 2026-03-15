@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -12,6 +11,9 @@ export default defineConfig({
     middlewareMode: false,
   },
   build: {
+    target: 'es2020',
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -19,8 +21,12 @@ export default defineConfig({
           charts: ['recharts'],
           motion: ['framer-motion'],
           supabase: ['@supabase/supabase-js'],
+          dateFns: ['date-fns'],
         }
       }
     }
-  }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
+  },
 })

@@ -6,6 +6,7 @@ import {
     ChevronLeft, Users, Clock, BookOpen, Calendar,
     GraduationCap, ClipboardCheck, Loader2, UserCircle2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const DAY_LABELS = { Mon: 'Du', Tue: 'Se', Wed: 'Ch', Thu: 'Pa', Fri: 'Ju', Sat: 'Sh', Sun: 'Ya' };
 
@@ -39,6 +40,7 @@ const TeacherGroupDetail = () => {
                 setStudents(list);
             } catch (err) {
                 console.error(err);
+                toast.error("Guruh ma'lumotlarini yuklashda xatolik");
             } finally {
                 setLoading(false);
             }

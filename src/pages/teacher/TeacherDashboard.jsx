@@ -185,21 +185,10 @@ const TeacherDashboard = () => {
     return (
         <div className="space-y-4 sm:space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Premium Header */}
-            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
-                {/* Dynamic Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-
-                {/* Animated Orbs */}
-                <motion.div
-                    animate={{ x: [0, 20, 0], y: [0, -20, 0] }}
-                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-24 -right-24 w-96 h-96 bg-pink-500/30 rounded-full blur-[80px]"
-                />
-                <motion.div
-                    animate={{ x: [0, -30, 0], y: [0, 30, 0] }}
-                    transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-1/2 left-[-100px] w-80 h-80 bg-blue-500/20 rounded-full blur-[80px]"
-                />
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-lg">
+                {/* Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-900"></div>
+                <div className="absolute -top-16 -right-16 w-56 h-56 bg-violet-500/10 rounded-full blur-[70px] pointer-events-none" />
 
                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
                     <div>
@@ -347,7 +336,7 @@ const TeacherDashboard = () => {
                         </h3>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex-1 flex flex-col min-h-[400px]">
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[400px]">
                         {groupStats.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center">
                                 <BarChart2 className="text-slate-300 mb-4" size={40} />

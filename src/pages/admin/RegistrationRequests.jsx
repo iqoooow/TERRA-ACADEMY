@@ -96,9 +96,8 @@ const RegistrationRequests = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Intelligence Header */}
-            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-                <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] blend-overlay"></div>
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-900 opacity-95"></div>
 
                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
                     <div>

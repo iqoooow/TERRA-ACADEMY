@@ -28,6 +28,11 @@ const StudentList = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const pageSize = 10;
 
+    // Reset to page 1 when search query changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
     useEffect(() => {
         fetchStudents(currentPage);
 

@@ -21,7 +21,8 @@ import {
     ChevronDown,
     PieChart,
     Sparkles,
-    Shield
+    Shield,
+    MessageSquare
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -70,6 +71,7 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Dars jadvali', path: '/admin/schedule', icon: Calendar },
             { name: 'Davomat', path: '/admin/attendance', icon: CalendarCheck },
             { name: 'Baholar', path: '/admin/grades', icon: PieChart },
+            { name: 'SMS Markaz', path: '/admin/sms', icon: MessageSquare },
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 

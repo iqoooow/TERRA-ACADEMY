@@ -303,14 +303,14 @@ const StudentProfile = () => {
                     {/* Quick stats row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
                         {[
-                            { label: "O'rtacha ball", value: avgGrade, icon: BarChart3, color: 'blue' },
-                            { label: "Jami baholar", value: grades.length, icon: BookOpen, color: 'indigo' },
-                            { label: "Davomat %", value: `${attPercent}%`, icon: CheckCircle2, color: 'emerald' },
-                            { label: "Guruhlar", value: groups.length, icon: Users, color: 'violet' },
-                        ].map(({ label, value, icon: Icon, color }) => (
+                            { label: "O'rtacha ball", value: avgGrade, icon: BarChart3, iconClass: 'text-blue-400' },
+                            { label: "Jami baholar", value: grades.length, icon: BookOpen, iconClass: 'text-indigo-400' },
+                            { label: "Davomat %", value: `${attPercent}%`, icon: CheckCircle2, iconClass: 'text-emerald-400' },
+                            { label: "Guruhlar", value: groups.length, icon: Users, iconClass: 'text-violet-400' },
+                        ].map(({ label, value, icon: Icon, iconClass }) => (
                             <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <Icon size={12} className={`text-${color}-400`} />
+                                    <Icon size={12} className={iconClass} />
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
                                 </div>
                                 <span className="text-2xl font-black text-white">{value}</span>
@@ -409,14 +409,14 @@ const StudentProfile = () => {
                     <Section title="Davomat Statistikasi" icon={CheckCircle2}>
                         <div className="grid grid-cols-3 gap-4 mb-4">
                             {[
-                                { label: 'Keldi', val: attendance.present, icon: CheckCircle2, color: 'emerald' },
-                                { label: 'Kelmadi', val: attendance.absent, icon: XCircle, color: 'rose' },
-                                { label: 'Kechikdi', val: attendance.late, icon: Clock, color: 'amber' },
-                            ].map(({ label, val, icon: Icon, color }) => (
-                                <div key={label} className={`p-4 bg-${color}-50 border border-${color}-100 rounded-2xl text-center`}>
-                                    <Icon size={20} className={`text-${color}-500 mx-auto mb-2`} />
-                                    <p className={`text-2xl font-black text-${color}-700`}>{val}</p>
-                                    <p className={`text-[10px] font-black text-${color}-600 uppercase tracking-widest`}>{label}</p>
+                                { label: 'Keldi', val: attendance.present, icon: CheckCircle2, wrapClass: 'p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-center', iconClass: 'text-emerald-500 mx-auto mb-2', valClass: 'text-2xl font-black text-emerald-700', labelClass: 'text-[10px] font-black text-emerald-600 uppercase tracking-widest' },
+                                { label: 'Kelmadi', val: attendance.absent, icon: XCircle, wrapClass: 'p-4 bg-rose-50 border border-rose-100 rounded-2xl text-center', iconClass: 'text-rose-500 mx-auto mb-2', valClass: 'text-2xl font-black text-rose-700', labelClass: 'text-[10px] font-black text-rose-600 uppercase tracking-widest' },
+                                { label: 'Kechikdi', val: attendance.late, icon: Clock, wrapClass: 'p-4 bg-amber-50 border border-amber-100 rounded-2xl text-center', iconClass: 'text-amber-500 mx-auto mb-2', valClass: 'text-2xl font-black text-amber-700', labelClass: 'text-[10px] font-black text-amber-600 uppercase tracking-widest' },
+                            ].map(({ label, val, icon: Icon, wrapClass, iconClass, valClass, labelClass }) => (
+                                <div key={label} className={wrapClass}>
+                                    <Icon size={20} className={iconClass} />
+                                    <p className={valClass}>{val}</p>
+                                    <p className={labelClass}>{label}</p>
                                 </div>
                             ))}
                         </div>

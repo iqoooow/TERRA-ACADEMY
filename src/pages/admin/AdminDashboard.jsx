@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { Users, GraduationCap, CreditCard, Activity, Download, Calendar, UserPlus, DollarSign, Plus, Shield, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import StatsCard from '../../components/ui/StatsCard';
 import { supabase } from '../../lib/supabase';
@@ -27,6 +28,8 @@ const ColoredBar = ({ x, y, width, height, fill }) => {
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const adminName = user?.first_name || user?.name?.split(' ')[0] || 'Admin';
     const [stats, setStats] = useState([
         { title: "O'quvchilar", value: '...', change: '...', icon: GraduationCap, color: 'blue' },
         { title: "O'qituvchilar", value: '...', change: '...', icon: Users, color: 'purple' },
@@ -147,21 +150,10 @@ const AdminDashboard = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-10 max-w-[1600px] mx-auto">
             {/* Page Header */}
-            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
-                {/* Dynamic Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-slate-800 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-
-                {/* Animated Orbs */}
-                <motion.div
-                    animate={{ x: [0, 20, 0], y: [0, -20, 0] }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-32 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"
-                />
-                <motion.div
-                    animate={{ x: [0, -30, 0], y: [0, 30, 0] }}
-                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute bottom-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-[80px]"
-                />
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-lg">
+                {/* Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-slate-800 to-slate-900"></div>
+                <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
 
                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
                     <div>
@@ -174,7 +166,7 @@ const AdminDashboard = () => {
                             Administrator Paneli
                         </motion.div>
                         <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-3">
-                            Xush kelibsiz, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-100">Admin!</span>
+                            Xush kelibsiz, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-indigo-100">{adminName}!</span>
                         </h1>
                         <p className="text-slate-400 font-medium text-lg max-w-xl leading-relaxed">
                             Bugungi kunda tizimda{' '}
@@ -242,7 +234,7 @@ const AdminDashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="lg:col-span-2 glass-card p-8 border border-slate-100 bg-white shadow-xl shadow-slate-200/50 rounded-[2.5rem]"
+                    className="lg:col-span-2 glass-card p-8 border border-slate-100 bg-white shadow-sm rounded-[2.5rem]"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <div>
@@ -301,7 +293,7 @@ const AdminDashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="glass-card p-8 border border-slate-100 bg-white shadow-xl shadow-slate-200/50 rounded-[2.5rem] flex flex-col"
+                    className="glass-card p-8 border border-slate-100 bg-white shadow-sm rounded-[2.5rem] flex flex-col"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <div>
@@ -398,18 +390,13 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                <div className="glass-card p-8 rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden flex flex-col justify-center items-center text-center shadow-2xl shadow-slate-900/20">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px]"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px]"></div>
+                <div className="glass-card p-8 rounded-[2.5rem] bg-slate-900 text-white relative overflow-hidden flex flex-col justify-center items-center text-center shadow-lg">
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none"></div>
 
                     <div className="relative z-10">
-                        <motion.div
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            className="w-20 h-20 bg-white/10 rounded-3xl mx-auto mb-8 flex items-center justify-center backdrop-blur-md shadow-inner shadow-white/20 border border-white/10"
-                        >
+                        <div className="w-20 h-20 bg-white/10 rounded-3xl mx-auto mb-8 flex items-center justify-center border border-white/10">
                             <Download size={36} className="text-blue-300" />
-                        </motion.div>
+                        </div>
                         <h3 className="text-3xl font-black mb-3">Tizim Yangilanishlari</h3>
                         <p className="text-slate-400 font-medium mb-8 max-w-sm mx-auto leading-relaxed">
                             Yangi versiya funksiyalari va xavfsizlik yangilanishlari haqida to'liq ma'lumot olish uchun bosing.

@@ -167,21 +167,10 @@ const StudentDashboard = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Premium Header */}
-            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
-                {/* Dynamic Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 opacity-90 group-hover:scale-105 transition-transform duration-1000"></div>
-
-                {/* Animated Orbs */}
-                <motion.div
-                    animate={{ x: [0, 20, 0], y: [0, -20, 0] }}
-                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-400/20 rounded-full blur-[80px]"
-                />
-                <motion.div
-                    animate={{ x: [0, -30, 0], y: [0, 30, 0] }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-1/2 left-[-100px] w-80 h-80 bg-purple-500/20 rounded-full blur-[80px]"
-                />
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-lg">
+                {/* Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-900"></div>
+                <div className="absolute -top-16 -right-16 w-56 h-56 bg-blue-400/10 rounded-full blur-[70px] pointer-events-none" />
 
                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-8">
                     <div>
@@ -231,7 +220,7 @@ const StudentDashboard = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="lg:col-span-2 glass-card p-8 rounded-[2.5rem] border border-slate-100 bg-white/80 backdrop-blur-xl shadow-xl shadow-slate-200/50"
+                    className="lg:col-span-2 glass-card p-8 rounded-[2.5rem] border border-slate-100 bg-white/80 backdrop-blur-xl shadow-sm"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <div>
@@ -294,7 +283,7 @@ const StudentDashboard = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="glass-card p-8 flex flex-col rounded-[2.5rem] border border-slate-100 bg-white/80 backdrop-blur-xl shadow-xl shadow-slate-200/50"
+                    className="glass-card p-8 flex flex-col rounded-[2.5rem] border border-slate-100 bg-white/80 backdrop-blur-xl shadow-sm"
                 >
                     <div className="mb-6">
                         <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">

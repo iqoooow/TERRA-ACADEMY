@@ -86,7 +86,7 @@ const ParentDashboard = () => {
                     groups: child.enrollments?.map(e => e.groups?.name).join(', ') || 'Kurslar yo\'q',
                     gpa: scoreCount > 0 ? Math.round(scoreSum / scoreCount) + '%' : '—',
                     attendance: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) + '%' : '—',
-                    isPaymentDue: !payments?.[0] || ['pending', 'overdue', 'partially_paid', 'unpaid'].includes(payments[0]?.status)
+                    isPaymentDue: !payments?.[0] || ['pending', 'overdue', 'partially_paid'].includes(payments[0]?.status)
                 };
             }));
 
@@ -104,8 +104,9 @@ const ParentDashboard = () => {
     return (
         <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-10">
             {/* Premium Header */}
-            <div className="relative group overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-slate-900 opacity-90 transition-transform duration-1000 group-hover:scale-105"></div>
+            <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900"></div>
+                <div className="absolute -top-16 -right-16 w-52 h-52 bg-emerald-400/10 rounded-full blur-[60px] pointer-events-none"></div>
 
                 <div className="relative z-10 p-8 md:p-12">
                     <motion.div
@@ -157,7 +158,7 @@ const ParentDashboard = () => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: idx * 0.1 }}
-                            className="glass-card p-8 rounded-[3rem] border border-slate-100 bg-white/80 backdrop-blur-xl relative overflow-hidden group hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500"
+                            className="bg-white p-8 rounded-[2.5rem] border border-slate-100 relative overflow-hidden group shadow-sm hover:shadow-md hover:border-emerald-100 transition-all duration-200"
                         >
                             <div className="flex items-center gap-6 mb-8">
                                 <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[2rem] flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform duration-500">
