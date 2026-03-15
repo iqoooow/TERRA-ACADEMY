@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UserPlus, CheckCircle2, Copy, Loader2, User, Phone, BookOpen, DollarSign, GraduationCap, Users, Heart } from 'lucide-react';
+import { X, UserPlus, CheckCircle2, Copy, Loader2, User, Phone, BookOpen, Banknote, GraduationCap, Heart, ChevronDown } from 'lucide-react';
+import ModalPortal from '../../../components/common/ModalPortal';
 import { supabase } from '../../../lib/supabase';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
@@ -172,17 +173,18 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
         toast.success(`${label} nusxalandi!`, { icon: '📋' });
     };
 
-    const inputClass = "w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-medium text-slate-800 placeholder:text-slate-400";
-    const labelClass = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2";
+    const inputClass = "w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 focus:bg-white outline-none transition-all text-sm font-semibold text-slate-800 placeholder:text-slate-300";
+    const labelClass = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5";
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xl"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={step === 2 ? onClose : undefined}
             />
 
@@ -223,7 +225,7 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
                                         Yangi {config.label} qo'shish
                                     </h2>
                                     <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                        Login va parol avtomatik yaratilaLi
+                                        Login va parol avtomatik yaratiladi
                                     </p>
                                 </div>
                             </div>
@@ -278,27 +280,30 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className={labelClass}>Guruh</label>
-                                            <select
-                                                value={form.group_id}
-                                                onChange={set('group_id')}
-                                                className={inputClass + " cursor-pointer"}
-                                            >
-                                                <option value="">Guruh tanlang</option>
-                                                {groups.map(g => (
-                                                    <option key={g.id} value={g.id}>{g.name}</option>
-                                                ))}
-                                            </select>
+                                            <div className="relative">
+                                                <select
+                                                    value={form.group_id}
+                                                    onChange={set('group_id')}
+                                                    className={inputClass + " appearance-none cursor-pointer pr-9"}
+                                                >
+                                                    <option value="">Guruh tanlang</option>
+                                                    {groups.map(g => (
+                                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                            </div>
                                         </div>
                                         <div>
                                             <label className={labelClass}>Oylik to'lov (so'm)</label>
                                             <div className="relative">
-                                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                                 <input
                                                     type="number"
                                                     value={form.monthly_fee}
                                                     onChange={set('monthly_fee')}
                                                     className={inputClass + " pl-10"}
-                                                    placeholder="500000"
+                                                    placeholder="500 000"
                                                     min="0"
                                                 />
                                             </div>
@@ -337,30 +342,28 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
                                 )}
 
                                 {/* Buttons */}
-                                <div className="flex gap-3 pt-2">
+                                <div className="flex gap-3 pt-1">
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest"
+                                        className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all"
                                     >
                                         Bekor
                                     </button>
-                                    <motion.button
-                                        whileHover={{ scale: 1.01 }}
-                                        whileTap={{ scale: 0.99 }}
+                                    <button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className={`flex-[2] py-4 bg-gradient-to-r ${config.gradient} text-white font-black rounded-2xl shadow-lg transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-60`}
+                                        className={`flex-[2] py-3.5 bg-gradient-to-r ${config.gradient} text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-lg shadow-blue-500/25 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60`}
                                     >
                                         {isSubmitting ? (
-                                            <Loader2 size={18} className="animate-spin" />
+                                            <Loader2 size={16} className="animate-spin" />
                                         ) : (
                                             <>
-                                                <UserPlus size={16} />
+                                                <UserPlus size={15} />
                                                 Yaratish
                                             </>
                                         )}
-                                    </motion.button>
+                                    </button>
                                 </div>
                             </form>
                         </motion.div>
@@ -449,6 +452,7 @@ const CreateUserModal = ({ role, onSuccess, onClose }) => {
                 </AnimatePresence>
             </motion.div>
         </div>
+        </ModalPortal>
     );
 };
 

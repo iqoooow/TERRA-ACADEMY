@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import { Search, Pencil, Trash2, Download, UserPlus, GraduationCap, Calendar, Phone, ShieldCheck, Activity, ChevronLeft, ChevronRight, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../../components/ui/EmptyState';
 import CreateUserModal from '../users/CreateUserModal';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const StudentList = () => {
     const navigate = useNavigate();
@@ -15,6 +19,7 @@ const StudentList = () => {
     const [loading, setLoading] = useState(true);
     const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [editingStudent, setEditingStudent] = useState(null);
     const [formData, setFormData] = useState({
         first_name: '',
@@ -80,16 +85,19 @@ const StudentList = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Haqiqatan ham bu o\'quvchini o\'chirmoqchimisiz?')) return;
+        const confirmed = await confirmToast('Haqiqatan ham bu o\'quvchini o\'chirmoqchimisiz?', { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
         try {
-            const { error } = await supabase.from('profiles').delete().eq('id', id);
+            const client = supabaseAdmin || supabase;
+            await client.from('payment_audit_logs').delete().eq('changed_by', id);
+            const { error } = await client.from('profiles').delete().eq('id', id);
             if (error) throw error;
-            toast.success("O'quvchi o'chirildi", {
-                style: { borderRadius: '15px', background: '#333', color: '#fff' }
-            });
+            if (supabaseAdmin) await supabaseAdmin.auth.admin.deleteUser(id);
+            toast.success("O'quvchi o'chirildi");
+            fetchStudents();
         } catch (err) {
             console.error('Error deleting student:', err);
-            toast.error("O'chirishda xatolik");
+            toast.error(`O'chirishda xatolik: ${err.message || 'Noma\'lum xato'}`);
         }
     };
 
@@ -143,40 +151,7 @@ const StudentList = () => {
         }
     };
 
-    const handleExport = () => {
-        if (students.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            if (str.includes(',') || str.includes('\"') || str.includes('\n')) {
-                return `\"${str.replace(/\"/g, '\"\"')}\"`;
-            }
-            return str;
-        };
-
-        const headers = ["O'quvchi", "Kodi", "Telefon", "Holat", "Sana"];
-        const rows = students.map(s => [
-            s.full_name || `${s.first_name || ''} ${s.last_name || ''}`.trim(),
-            s.student_code || '-',
-            s.phone || '-',
-            s.status || '-',
-            s.created_at ? format(new Date(s.created_at), 'yyyy-MM-dd') : '-'
-        ]);
-
-        const csvContent = headers.map(escapeCSV).join(',') + "\n"
-            + rows.map(r => r.map(escapeCSV).join(',')).join("\n");
-
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `terra_students_${format(new Date(), 'yyyy_MM_dd')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("CSV hisoboti tayyorlandi");
-    };
+    const handleExport = () => { if (students.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     return (
         <div className="space-y-10 animate-fade-in pb-10">
@@ -249,98 +224,72 @@ const StudentList = () => {
                         className="flex-1 md:flex-none btn-primary from-blue-500 to-indigo-600 shadow-blue-500/30 rounded-2xl px-6 py-4 flex items-center gap-2"
                     >
                         <UserPlus size={20} />
-                        <span className="font-black text-[10px] uppercase tracking-[0.2em]">O'quvchi Qo'shish</span>
+                        <span className="font-black text-[10px] uppercase tracking-[0.2em] whitespace-nowrap">O'quvchi Qo'shish</span>
                     </button>
                 </div>
             </div>
 
-            {/* Separated Row Table */}
-            <div className="overflow-x-auto">
-            <div className="min-w-[640px] space-y-4">
-                <div className="px-10 grid grid-cols-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                    <div className="col-span-2">O'quvchi Ma'lumotlari</div>
-                    <div className="col-span-1">ID Kodi</div>
-                    <div className="col-span-1">Kontakt</div>
-                    <div className="col-span-1 text-center">Holati</div>
-                    <div className="col-span-1 text-right">Boshqaruv</div>
+            {/* Loading / Empty */}
+            {loading ? (
+                <div className="py-20 flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ma'lumotlar yuklanmoqda...</p>
                 </div>
-
-                {loading ? (
-                    <div className="py-20 flex flex-col items-center gap-4">
-                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ma'lumotlar yuklanmoqda...</p>
-                    </div>
-                ) : students.length === 0 ? (
-                    <EmptyState
-                        title="O'quvchilar topilmadi"
-                        description={searchQuery ? `"${searchQuery}" bo'yicha hech qanday o'quvchi topilmadi.` : "Hozircha o'quvchilar ro'yxati bo'sh."}
-                    />
-                ) : (
-                    <div className="space-y-4">
+            ) : students.length === 0 ? (
+                <EmptyState
+                    title="O'quvchilar topilmadi"
+                    description={searchQuery ? `"${searchQuery}" bo'yicha hech qanday o'quvchi topilmadi.` : "Hozircha o'quvchilar ro'yxati bo'sh."}
+                />
+            ) : (
+                <>
+                    {/* ── Mobile Card Layout (< md) ── */}
+                    <div className="md:hidden space-y-3">
                         <AnimatePresence mode="popLayout">
                             {students.map((student, idx) => (
                                 <motion.div
                                     key={student.id}
-                                    initial={{ opacity: 0, scale: 0.98, y: 10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    className="p-3 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 hover:bg-slate-50 transition-all duration-500 group cursor-pointer"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.04 }}
+                                    className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm active:scale-[0.99] transition-all cursor-pointer"
                                     onClick={() => navigate(`/admin/students/${student.id}`)}
                                 >
-                                    <div className="grid grid-cols-6 items-center">
-                                        <div className="col-span-2 flex items-center gap-4 pl-6">
-                                            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center font-black text-xl border border-blue-200 group-hover:scale-110 transition-transform duration-500 shadow-inner overflow-hidden">
-                                                {(student.full_name || 'S').charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-black text-slate-800 leading-none group-hover:text-blue-600 transition-colors uppercase tracking-tight">{student.full_name}</h4>
-                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5 block flex items-center gap-1.5">
-                                                    <Calendar size={10} /> {format(new Date(student.created_at), 'dd MMM, yyyy', { locale: uz })}
-                                                </span>
-                                            </div>
+                                    {/* Row 1: Avatar + Name + Status */}
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-11 h-11 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-black text-base border border-blue-200 shrink-0">
+                                            {(student.full_name || 'S').charAt(0).toUpperCase()}
                                         </div>
-                                        <div className="col-span-1">
-                                            <span className="font-black text-[10px] text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 uppercase tracking-widest">
-                                                {student.student_code || '---'}
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-black text-slate-800 uppercase tracking-tight truncate text-sm leading-tight">{student.full_name}</h4>
+                                            <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
+                                                <Calendar size={9} />{format(new Date(student.created_at), 'dd MMM, yyyy', { locale: uz })}
                                             </span>
                                         </div>
-                                        <div className="col-span-1">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-600 tracking-wider">
-                                                    <Phone size={12} className="text-slate-400" />
-                                                    {student.phone || 'N/A'}
-                                                </div>
-                                            </div>
+                                        <div className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase border shrink-0 flex items-center gap-1 ${getStatusBadge(student.status)}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${student.status === 'approved' ? 'bg-emerald-500' : student.status === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
+                                            {student.status}
                                         </div>
-                                        <div className="col-span-1 flex justify-center">
-                                            <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 border ${getStatusBadge(student.status)}`}>
-                                                <div className={`w-2 h-2 rounded-full ${student.status === 'approved' ? 'bg-emerald-500' :
-                                                    student.status === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
-                                                    }`} />
-                                                {student.status}
-                                            </div>
-                                        </div>
-                                        <div className="col-span-1 pr-6 flex justify-end gap-2">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/admin/students/${student.id}`); }}
-                                                className="w-11 h-11 bg-white text-slate-400 hover:bg-blue-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
-                                                title="Profilni ko'rish"
-                                            >
-                                                <ArrowUpRight size={18} />
+                                    </div>
+                                    {/* Row 2: Code + Phone + Actions */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-black text-[9px] text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 uppercase tracking-widest shrink-0">
+                                            {student.student_code || '---'}
+                                        </span>
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 truncate flex-1">
+                                            <Phone size={10} className="text-slate-400 shrink-0" />{student.phone || 'N/A'}
+                                        </span>
+                                        <div className="flex gap-1.5 shrink-0">
+                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/students/${student.id}`); }}
+                                                className="w-8 h-8 bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white rounded-xl flex items-center justify-center transition-all border border-slate-100">
+                                                <ArrowUpRight size={14} />
                                             </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleEdit(student); }}
-                                                className="w-11 h-11 bg-white text-slate-400 hover:bg-indigo-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
-                                                title="Tahrirlash"
-                                            >
-                                                <Pencil size={18} />
+                                            <button onClick={(e) => { e.stopPropagation(); handleEdit(student); }}
+                                                className="w-8 h-8 bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-xl flex items-center justify-center transition-all border border-slate-100">
+                                                <Pencil size={14} />
                                             </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }}
-                                                className="w-11 h-11 bg-white text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm"
-                                                title="O'chirish"
-                                            >
-                                                <Trash2 size={18} />
+                                            <button onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }}
+                                                className="w-8 h-8 bg-slate-50 text-slate-400 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all border border-slate-100">
+                                                <Trash2 size={14} />
                                             </button>
                                         </div>
                                     </div>
@@ -348,9 +297,80 @@ const StudentList = () => {
                             ))}
                         </AnimatePresence>
                     </div>
-                )}
-            </div>
-            </div>
+
+                    {/* ── Desktop Table Layout (≥ md) ── */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <div className="min-w-[640px] space-y-4">
+                            <div className="px-10 grid grid-cols-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                <div className="col-span-2">O'quvchi Ma'lumotlari</div>
+                                <div className="col-span-1">ID Kodi</div>
+                                <div className="col-span-1">Kontakt</div>
+                                <div className="col-span-1 text-center">Holati</div>
+                                <div className="col-span-1 text-right">Boshqaruv</div>
+                            </div>
+                            <div className="space-y-4">
+                                <AnimatePresence mode="popLayout">
+                                    {students.map((student, idx) => (
+                                        <motion.div
+                                            key={student.id}
+                                            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            transition={{ delay: idx * 0.05 }}
+                                            className="p-3 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 hover:bg-slate-50 transition-all duration-500 group cursor-pointer"
+                                            onClick={() => navigate(`/admin/students/${student.id}`)}
+                                        >
+                                            <div className="grid grid-cols-6 items-center">
+                                                <div className="col-span-2 flex items-center gap-4 pl-6">
+                                                    <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center font-black text-xl border border-blue-200 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                                                        {(student.full_name || 'S').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-black text-slate-800 leading-none group-hover:text-blue-600 transition-colors uppercase tracking-tight">{student.full_name}</h4>
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-1.5">
+                                                            <Calendar size={10} /> {format(new Date(student.created_at), 'dd MMM, yyyy', { locale: uz })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <span className="font-black text-[10px] text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 uppercase tracking-widest">
+                                                        {student.student_code || '---'}
+                                                    </span>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-600 tracking-wider">
+                                                        <Phone size={12} className="text-slate-400" />
+                                                        {student.phone || 'N/A'}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1 flex justify-center">
+                                                    <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 border ${getStatusBadge(student.status)}`}>
+                                                        <div className={`w-2 h-2 rounded-full ${student.status === 'approved' ? 'bg-emerald-500' : student.status === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
+                                                        {student.status}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1 pr-6 flex justify-end gap-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/students/${student.id}`); }}
+                                                        className="w-11 h-11 bg-white text-slate-400 hover:bg-blue-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm">
+                                                        <ArrowUpRight size={18} />
+                                                    </button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleEdit(student); }}
+                                                        className="w-11 h-11 bg-white text-slate-400 hover:bg-indigo-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm">
+                                                        <Pencil size={18} />
+                                                    </button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }}
+                                                        className="w-11 h-11 bg-white text-slate-400 hover:bg-rose-600 hover:text-white rounded-[1.2rem] flex items-center justify-center transition-all hover:scale-110 border border-slate-100 shadow-sm">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Ultra-Premium Pagination */}
             {totalPages > 1 && (
@@ -377,6 +397,15 @@ const StudentList = () => {
                 </div>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="O'quvchilar"
+                headers={["O'quvchi", "Kodi", "Telefon", "Holat", "Sana"]}
+                rows={students.map(s => [s.full_name || `${s.first_name||''} ${s.last_name||''}`.trim(), s.student_code||'-', s.phone||'-', s.status||'-', s.created_at ? format(new Date(s.created_at),'yyyy-MM-dd') : '-'])}
+                filename="terra_students"
+            />
+
             {/* Create User Modal */}
             <AnimatePresence>
                 {showCreateModal && (
@@ -391,12 +420,12 @@ const StudentList = () => {
             {/* Edit / Add Modal */}
             <AnimatePresence>
                 {isFormatModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/40 backdrop-blur-2xl"
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                             onClick={() => setIsFormatModalOpen(false)}
                         />
                         <motion.div
@@ -469,7 +498,7 @@ const StudentList = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -12,7 +12,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
 
@@ -43,54 +43,46 @@ const MainLayout = () => {
         setIsUserMenuOpen(false);
     }, [location]);
 
-    // Get page title from path
-    const getPageTitle = () => {
-        const path = location.pathname;
-        const segments = path.split('/').filter(Boolean);
+    const PAGE_TITLES = useMemo(() => ({
+        'dashboard': 'Asosiy sahifa',
+        'students': "O'quvchilar",
+        'teachers': "O'qituvchilar",
+        'parents': "Ota-onalar",
+        'groups': "Guruhlar",
+        'subjects': "Fanlar",
+        'finance': "Moliya",
+        'schedule': "Dars jadvali",
+        'attendance': "Davomat",
+        'registration-requests': "Arizalar",
+        'courses': "Kurslar",
+        'grades': "Baholar",
+        'exams': "Imtihonlar",
+        'payments': "To'lovlar",
+        'children': "Farzandlar",
+        'settings': "Sozlamalar",
+    }), []);
+
+    const pageTitle = useMemo(() => {
+        const segments = location.pathname.split('/').filter(Boolean);
         const lastSegment = segments[segments.length - 1] || 'Dashboard';
-
-        const titles = {
-            'dashboard': 'Asosiy sahifa',
-            'students': "O'quvchilar",
-            'teachers': "O'qituvchilar",
-            'parents': "Ota-onalar",
-            'groups': "Guruhlar",
-            'subjects': "Fanlar",
-            'finance': "Moliya",
-            'schedule': "Dars jadvali",
-            'attendance': "Davomat",
-            'registration-requests': "Arizalar",
-            'courses': "Kurslar",
-            'grades': "Baholar",
-            'exams': "Imtihonlar",
-            'payments': "To'lovlar",
-            'children': "Farzandlar",
-            'settings': "Sozlamalar",
-        };
-
-        // If last segment is a UUID or numeric ID, use parent segment title
         const isId = /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(lastSegment) || /^\d+$/.test(lastSegment);
         if (isId && segments.length >= 2) {
             const parent = segments[segments.length - 2];
-            return titles[parent] ? `${titles[parent]} — Batafsil` : lastSegment;
+            return PAGE_TITLES[parent] ? `${PAGE_TITLES[parent]} — Batafsil` : lastSegment;
         }
+        return PAGE_TITLES[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
+    }, [location.pathname, PAGE_TITLES]);
 
-        return titles[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
-    };
-
-    // Bell: navigate based on role
-    const handleBellClick = () => {
+    const handleBellClick = useCallback(() => {
         const role = user?.role;
-        if (role === 'owner' || role === 'admin') {
-            navigate('/admin/registration-requests');
-        }
-    };
+        if (role === 'owner' || role === 'admin') navigate('/admin/registration-requests');
+    }, [user?.role, navigate]);
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         setIsUserMenuOpen(false);
         await logout();
         navigate('/login');
-    };
+    }, [logout, navigate]);
 
     // Match sidebar collapsed width of 88px (sidebarWidth = 88 in Sidebar.jsx)
     const mainContentMargin = isMobile ? 'ml-0' : (isSidebarCollapsed ? 'ml-[88px]' : 'ml-[280px]');
@@ -121,9 +113,9 @@ const MainLayout = () => {
                             <div className="hidden sm:flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-0.5">
                                 <span className="hover:text-blue-600 cursor-pointer transition-colors">Terra Academy</span>
                                 <span className="text-slate-300">/</span>
-                                <span className="text-blue-600">{getPageTitle()}</span>
+                                <span className="text-blue-600">{pageTitle}</span>
                             </div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{getPageTitle()}</h2>
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{pageTitle}</h2>
                         </div>
                     </div>
 
@@ -209,17 +201,7 @@ const MainLayout = () => {
                     <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4f46e5 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 
                     <div className="max-w-[1600px] mx-auto relative z-10">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={location.pathname}
-                                initial={{ opacity: 0, y: 15, scale: 0.99 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -15, scale: 0.99 }}
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            >
-                                <Outlet />
-                            </motion.div>
-                        </AnimatePresence>
+                        <Outlet />
                     </div>
                 </main>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, User, Users, GraduationCap, X, Loader2, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -39,19 +39,7 @@ const GlobalSearch = () => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (query.length >= 2) {
-                performSearch();
-            } else {
-                setResults({ students: [], teachers: [], parents: [], groups: [] });
-            }
-        }, 300); // Debounce 300ms
-
-        return () => clearTimeout(timer);
-    }, [query]);
-
-    const performSearch = async () => {
+    const performSearch = useCallback(async () => {
         setLoading(true);
         setIsOpen(true);
         try {
@@ -86,22 +74,28 @@ const GlobalSearch = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [query]);
 
-    const handleSelect = (type, item) => {
+    useEffect(() => {
+        if (query.length < 2) {
+            setResults({ students: [], teachers: [], parents: [], groups: [] });
+            return;
+        }
+        const timer = setTimeout(performSearch, 300);
+        return () => clearTimeout(timer);
+    }, [query, performSearch]);
+
+    const handleSelect = useCallback((type, item) => {
         setIsOpen(false);
         setQuery('');
-
-        // Navigate based on type
-        // Ideally pass query param or ID to highlight
         switch (type) {
-            case 'student': navigate('/admin/students'); break;
-            case 'teacher': navigate('/admin/teachers'); break;
-            case 'parent': navigate('/admin/parents'); break;
+            case 'student': navigate(`/admin/students/${item.id}`); break;
+            case 'teacher': navigate(`/admin/teachers/${item.id}`); break;
+            case 'parent': navigate(`/admin/parents/${item.id}`); break;
             case 'group': navigate('/admin/groups'); break;
             default: break;
         }
-    };
+    }, [navigate]);
 
     const hasResults = Object.values(results).some(arr => arr.length > 0);
 
@@ -243,4 +237,4 @@ const GlobalSearch = () => {
     );
 };
 
-export default GlobalSearch;
+export default React.memo(GlobalSearch);

@@ -16,10 +16,16 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233b82f6'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='18' font-weight='bold' fill='white'>T</text></svg>" />
 
-  <!-- Google Fonts - Inter -->
+  <!-- Preconnect to Supabase for faster API calls -->
+  <link rel="preconnect" href="https://erlsayzbvlccjenficsx.supabase.co" crossorigin />
+  <link rel="dns-prefetch" href="https://erlsayzbvlccjenficsx.supabase.co" />
+
+  <!-- Google Fonts - Inter (non-blocking) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" /></noscript>
 
   <title>Terra Academy — O'quv Markazi Boshqaruv Tizimi</title>
 </head>

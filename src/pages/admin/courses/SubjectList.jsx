@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
-import { Search, Plus, Pencil, Trash2, X, BookOpen, Layers, Zap, ShieldCheck, CreditCard, RefreshCw, Tag, DollarSign } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, BookOpen, Layers, Zap, ShieldCheck, CreditCard, RefreshCw, Tag, Banknote, ChevronDown } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import StatsCard from '../../../components/ui/StatsCard';
 import EmptyState from '../../../components/ui/EmptyState';
 import { cn } from '../../../utils/cn';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const CATEGORIES = [
     "General English",
@@ -76,7 +78,8 @@ const SubjectList = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Haqiqatan ham bu fanni o\'chirmoqchimisiz?')) return;
+        const confirmed = await confirmToast('Haqiqatan ham bu fanni o\'chirmoqchimisiz?', { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
         try {
             const { error } = await supabase.from('subjects').delete().eq('id', id);
             if (error) throw error;
@@ -329,99 +332,127 @@ const SubjectList = () => {
                 </motion.div>
             )}
 
-            {/* Premium Modal */}
+            {/* Modal */}
             <AnimatePresence>
                 {isFormatModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <ModalPortal><div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setIsFormatModalOpen(false)}
                         />
+
+                        {/* Modal card */}
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            initial={{ scale: 0.92, opacity: 0, y: 24 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="bg-white rounded-[3rem] p-12 w-full max-w-2xl relative z-10 shadow-2xl border border-white/20"
+                            exit={{ scale: 0.92, opacity: 0, y: 24 }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+                            className="relative z-10 w-full max-w-lg bg-white rounded-[2rem] shadow-2xl overflow-hidden"
                         >
-                            <div className="mb-10">
-                                <span className="px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 inline-block">
-                                    {editingSubject ? 'Academic.Update' : 'Academic.New'}
-                                </span>
-                                <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
-                                    {editingSubject ? "Fan Ma'lumotlarini Yangilash" : "Yangi Fan Qo'shish"}
-                                </h2>
+                            {/* Top accent */}
+                            <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-blue-500 to-violet-500" />
+
+                            {/* Header */}
+                            <div className="px-8 pt-7 pb-0 flex items-start justify-between">
+                                <div>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                                        <BookOpen size={10} />
+                                        {editingSubject ? 'Tahrirlash' : 'Yangi fan'}
+                                    </span>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                                        {editingSubject ? "Fan ma'lumotlarini" : 'Yangi fan'}<br />
+                                        <span className="text-slate-400 text-base font-bold">
+                                            {editingSubject ? 'yangilash' : "qo'shish"}
+                                        </span>
+                                    </h2>
+                                </div>
+                                <button
+                                    onClick={() => setIsFormatModalOpen(false)}
+                                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all mt-1"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fan Nomi</label>
-                                        <input
-                                            type="text"
-                                            value={formData.name}
-                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-8 py-5 bg-slate-50 border-none rounded-[2rem] font-bold focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all"
-                                            placeholder="Masalan: IELTS Intensive"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Yo'nalish (Category)</label>
+                            {/* Form */}
+                            <form onSubmit={handleSubmit} className="px-8 pt-6 pb-8 space-y-5">
+                                {/* Fan nomi */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fan nomi</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 focus:bg-white transition-all placeholder:text-slate-300"
+                                        placeholder="Masalan: IELTS Intensive"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Yo'nalish */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yo'nalish (Category)</label>
+                                    <div className="relative">
                                         <select
                                             value={formData.category}
                                             onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                            className="w-full px-8 py-5 bg-slate-50 border-none rounded-[2rem] font-black text-xs uppercase focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all appearance-none cursor-pointer"
+                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 focus:bg-white transition-all appearance-none cursor-pointer"
                                         >
                                             {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                         </select>
+                                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Oylik To'lov (UZS)</label>
+                                {/* Narx */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Oylik to'lov (UZS)</label>
                                     <div className="relative">
-                                        <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                        <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                         <input
                                             type="number"
                                             value={formData.price}
                                             onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                            className="w-full pl-16 pr-8 py-5 bg-slate-50 border-none rounded-[2rem] font-mono font-bold text-xl focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all"
-                                            placeholder="500000"
+                                            className="w-full pl-12 pr-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 focus:bg-white transition-all placeholder:text-slate-300"
+                                            placeholder="500 000"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tavsif (Optional)</label>
+                                {/* Tavsif */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tavsif <span className="normal-case font-medium text-slate-300">(ixtiyoriy)</span></label>
                                     <textarea
                                         value={formData.description}
                                         onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full px-8 py-6 bg-slate-50 border-none rounded-[2rem] focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-medium resize-none min-h-[120px]"
-                                        placeholder="Kurs haqida umumiy ma'lumotlar..."
+                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 focus:bg-white transition-all resize-none min-h-[90px] placeholder:text-slate-300"
+                                        placeholder="Kurs haqida qisqacha ma'lumot..."
                                     />
                                 </div>
 
-                                <div className="pt-4 flex gap-4">
+                                {/* Buttons */}
+                                <div className="flex gap-3 pt-1">
                                     <button
                                         type="button"
                                         onClick={() => setIsFormatModalOpen(false)}
-                                        className="flex-1 py-6 bg-slate-100 text-slate-500 font-black rounded-[2rem] hover:bg-slate-200 transition-all uppercase tracking-[0.2em] text-[10px]"
+                                        className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all"
                                     >
                                         Bekor qilish
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 py-6 bg-indigo-600 text-white font-black rounded-[2rem] shadow-2xl shadow-indigo-500/30 hover:bg-indigo-700 transition-all uppercase tracking-[0.2em] text-[10px]"
+                                        className="flex-1 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:opacity-90 transition-all"
                                     >
                                         {editingSubject ? 'Saqlash' : "Qo'shish"}
                                     </button>
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

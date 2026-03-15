@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../../utils/cn';
 import { formatMonthYear, STATUS_CONFIG } from '../../utils/paymentUtils';
 import { useParent } from '../../context/ParentContext';
+import ModalPortal from '../../components/common/ModalPortal';
 
 const ParentPayments = () => {
     const [searchParams] = useSearchParams();
@@ -291,10 +292,10 @@ const ParentPayments = () => {
             {/* Receipt Modal */}
             <AnimatePresence>
                 {showReceipt && receiptData && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 receipt-exclude">
+                    <ModalPortal><div className="fixed inset-0 z-[110] flex items-center justify-center p-4 receipt-exclude">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/80 backdrop-blur-3xl receipt-exclude"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm receipt-exclude"
                             onClick={() => setShowReceipt(false)}
                         />
                         <motion.div
@@ -354,7 +355,7 @@ const ParentPayments = () => {
                                 <Printer size={14} /> Chop etish
                             </button>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

@@ -8,9 +8,13 @@ import { toast } from 'react-hot-toast';
 import { formatMonthYear } from '../../../utils/paymentUtils';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const FinanceList = () => {
     const [transactions, setTransactions] = useState([]);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [students, setStudents] = useState([]);
     const [stats, setStats] = useState({
         total: 0,
@@ -137,47 +141,13 @@ const FinanceList = () => {
         }
     };
 
-    const handleExport = () => {
-        if (transactions.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-        const headers = ['TRX ID', 'O\'quvchi', 'Sana', 'Turi', 'Summa', 'Holat'];
-
-        // Helper to escape CSV values
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
-
-        const rows = transactions.map(d => [
-            d.shortId,
-            d.student,
-            d.date,
-            d.typeLabel,
-            d.amount,
-            d.status
-        ]);
-
-        const csvContent = headers.map(escapeCSV).join(",") + "\n"
-            + rows.map(r => r.map(escapeCSV).join(",")).join("\n");
-
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `terra_finance_${format(new Date(), 'yyyy_MM_dd')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Hisobot yuklab olindi");
-    };
+    const handleExport = () => { if (transactions.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     // Delete a single payment_transaction (not the monthly_payment record itself)
     const handleDeletePayment = async (e, id) => {
         e.stopPropagation();
-        if (!window.confirm("Haqiqatan ham bu tranzaksiyani o'chirmoqchimisiz? Bu oylik to'lov hisobini qayta hisoblaydi.")) return;
+        const confirmed = await confirmToast("Haqiqatan ham bu tranzaksiyani o'chirmoqchimisiz? Bu oylik to'lov hisobini qayta hisoblaydi.", { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
 
         setDeletingId(id);
         try {
@@ -453,17 +423,27 @@ const FinanceList = () => {
                 </div>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="Moliya"
+                headers={['TRX ID',"O'quvchi",'Sana','Turi','Summa','Holat']}
+                rows={transactions.map(d => [d.shortId, d.student, d.date, d.typeLabel, d.amount, d.status])}
+                filename="terra_finance"
+            />
+
             {/* View Details Modal */}
             <AnimatePresence>
                 {viewingTrx && (
-                    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/80 backdrop-blur-3xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setViewingTrx(null)}
                         />
+
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, rotateX: 20 }}
                             animate={{ scale: 1, opacity: 1, rotateX: 0 }}
@@ -513,19 +493,19 @@ const FinanceList = () => {
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 
             {/* Add Payment Modal */}
             <AnimatePresence>
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/40 backdrop-blur-2xl"
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                             onClick={() => setIsModalOpen(false)}
                         />
                         <motion.div
@@ -636,7 +616,7 @@ const FinanceList = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

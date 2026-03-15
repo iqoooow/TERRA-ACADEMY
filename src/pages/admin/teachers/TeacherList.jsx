@@ -9,10 +9,15 @@ import StatsCard from '../../../components/ui/StatsCard';
 import EmptyState from '../../../components/ui/EmptyState';
 import CreateUserModal from '../users/CreateUserModal';
 import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const TeacherList = () => {
     const navigate = useNavigate();
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
@@ -65,51 +70,30 @@ const TeacherList = () => {
         }
     };
 
-    const handleExport = () => {
-        if (teachers.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-        const headers = ['F.I.O', 'Telefon', 'Email', 'Holati'];
-
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
-
-        const rows = teachers.map(t => [
-            t.full_name || `${t.first_name} ${t.last_name}`,
-            t.phone,
-            t.email,
-            t.status
-        ]);
-
-        const csvContent = headers.map(escapeCSV).join(",") + "\n"
-            + rows.map(r => r.map(escapeCSV).join(",")).join("\n");
-
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `terra_teachers_${format(new Date(), 'yyyy_MM_dd')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("O'qituvchilar ro'yxati yuklandi");
-    };
+    const handleExport = () => { if (teachers.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Haqiqatan ham bu o\'qituvchini o\'chirmoqchimisiz?')) return;
+        const confirmed = await confirmToast('Haqiqatan ham bu o\'qituvchini o\'chirmoqchimisiz?', { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
 
         try {
-            const { error } = await supabase.from('profiles').delete().eq('id', id);
-            if (error) throw error;
+            const client = supabaseAdmin || supabase;
+            // Clear FK references before deleting profile
+            await client.from('payment_audit_logs').delete().eq('changed_by', id);
+            await client.from('groups').update({ teacher_id: null }).eq('teacher_id', id);
+            const { error: profileError } = await client.from('profiles').delete().eq('id', id);
+            if (profileError) throw profileError;
+
+            // Delete auth user if admin client available
+            if (supabaseAdmin) {
+                await supabaseAdmin.auth.admin.deleteUser(id);
+            }
+
             toast.success("O'qituvchi o'chirildi");
             fetchTeachers();
         } catch (err) {
             console.error('Error deleting teacher:', err);
-            toast.error("O'chirishda xatolik");
+            toast.error(`O'chirishda xatolik: ${err.message || 'Noma\'lum xato'}`);
         }
     };
 
@@ -280,7 +264,10 @@ const TeacherList = () => {
                                         >
                                             <Trash2 size={18} />
                                         </button>
-                                        <button className="p-3 bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white rounded-xl transition-all">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/admin/teachers/${t.id}`); }}
+                                            className="p-3 bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
+                                        >
                                             <ArrowUpRight size={18} />
                                         </button>
                                     </div>
@@ -316,10 +303,19 @@ const TeacherList = () => {
                 </div>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="O'qituvchilar"
+                headers={['F.I.O','Telefon','Email','Holati']}
+                rows={teachers.map(t => [t.full_name||`${t.first_name||''} ${t.last_name||''}`.trim(), t.phone||'-', t.email||'-', t.status||'-'])}
+                filename="terra_teachers"
+            />
+
             {/* Premium Modal */}
             <AnimatePresence>
                 {isFormatModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -356,9 +352,10 @@ const TeacherList = () => {
                                     const { error } = await supabase
                                         .from('profiles')
                                         .update({
-                                            first_name: formData.first_name,
-                                            last_name: formData.last_name,
-                                            phone: formData.phone,
+                                            first_name: formData.first_name.trim(),
+                                            last_name: formData.last_name.trim(),
+                                            full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+                                            phone: formData.phone.trim(),
                                         })
                                         .eq('id', editingTeacher.id);
                                     if (error) throw error;
@@ -366,7 +363,8 @@ const TeacherList = () => {
                                     setIsFormatModalOpen(false);
                                     fetchTeachers();
                                 } catch (err) {
-                                    toast.error("Saqlashda xatolik yuz berdi");
+                                    console.error('Update error:', err);
+                                    toast.error(`Xatolik: ${err.message || 'Saqlashda xatolik'}`);
                                 }
                             }} className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
@@ -420,7 +418,7 @@ const TeacherList = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 

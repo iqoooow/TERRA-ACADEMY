@@ -41,7 +41,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState([]);
-    const [, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [teacherName, setTeacherName] = useState('');
     const [schedule, setSchedule] = useState([]);
     const [groupStats, setGroupStats] = useState([]);

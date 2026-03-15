@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { motion } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
 import Table, { TableRow, TableCell } from '../../../components/ui/Table';
+import ExportModal from '../../../components/common/ExportModal';
 import toast from 'react-hot-toast';
 
 const statusLabel = { present: "Keldi", absent: "Kelmadi", late: "Kechikdi" };
@@ -35,6 +36,7 @@ const AttendanceList = () => {
     const [report, setReport] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showExportModal, setShowExportModal] = useState(false);
 
     useEffect(() => {
         if (!date) {
@@ -187,9 +189,11 @@ const AttendanceList = () => {
                     />
                 </div>
                 <div className="flex gap-2 p-1 w-full md:w-auto">
-                    <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+                    <button
+                        onClick={() => { if (filteredReport.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); }}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
                         <FileText size={16} />
-                        Export PDF
+                        Eksport
                     </button>
                     <button className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
                         <ClipboardCheck size={20} />
@@ -301,6 +305,17 @@ const AttendanceList = () => {
                     ))}
                 </motion.div>
             )}
+
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="Davomat Hisoboti"
+                headers={['Guruh', "O'quvchi", 'Holat', 'Sana']}
+                rows={filteredReport.flatMap(g =>
+                    g.students.map(s => [g.name, s.name, statusLabel[s.status] || s.status, date])
+                )}
+                filename="davomat_hisoboti"
+            />
         </div>
     );
 };

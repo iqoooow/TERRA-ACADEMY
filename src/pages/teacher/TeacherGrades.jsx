@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import ModalPortal from '../../components/common/ModalPortal';
 
 const TYPE_LABELS = {
     cefr: { label: 'CEFR', color: 'bg-indigo-100 text-indigo-700' },
@@ -340,7 +341,7 @@ const TeacherGrades = () => {
             {/* Modal */}
             <AnimatePresence>
                 {modalOpen && (
-                    <motion.div
+                    <ModalPortal><motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -481,7 +482,7 @@ const TeacherGrades = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </motion.div>
+                    </motion.div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

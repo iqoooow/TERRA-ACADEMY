@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useParent } from '../../context/ParentContext';
 import {
     LayoutDashboard,
     Users,
@@ -30,7 +29,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobile }) => {
     const { logout, user } = useAuth();
-    const { selectedChild } = useParent();
     const navigate = useNavigate();
     const location = useLocation();
     const [expandedItem, setExpandedItem] = useState(null);
@@ -95,11 +93,10 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
-        const childId = selectedChild?.id;
         const parentLinks = [
             { name: 'Kabinet', path: '/parent/dashboard', icon: LayoutDashboard },
-            { name: 'Farzandlar', path: childId ? `/parent/children?id=${childId}` : '/parent/dashboard', icon: Users },
-            { name: "To'lov tarixi", path: childId ? `/parent/payments?id=${childId}` : '/parent/dashboard', icon: CreditCard },
+            { name: 'Farzandlar', path: '/parent/children', icon: Users },
+            { name: "To'lov tarixi", path: '/parent/payments', icon: CreditCard },
             { name: 'Sozlamalar', path: '/settings', icon: Settings },
         ];
 
@@ -366,4 +363,4 @@ const Sidebar = ({ role, isOpen, setIsOpen, isCollapsed, setIsCollapsed, isMobil
     );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

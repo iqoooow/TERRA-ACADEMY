@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../../utils/cn';
 
 import { formatMonthYear, STATUS_CONFIG } from '../../utils/paymentUtils';
+import ModalPortal from '../../components/common/ModalPortal';
 
 const StudentPayments = () => {
     const [loading, setLoading] = useState(true);
@@ -219,10 +220,10 @@ const StudentPayments = () => {
             {/* Receipt Modal */}
             <AnimatePresence>
                 {showReceipt && receiptData && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/80 backdrop-blur-3xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setShowReceipt(false)}
                         />
                         <motion.div
@@ -269,7 +270,7 @@ const StudentPayments = () => {
                                 <Printer size={16} /> Chop etish
                             </button>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

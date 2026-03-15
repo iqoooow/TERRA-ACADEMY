@@ -6,6 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import StatsCard from '../../../components/ui/StatsCard';
 import EmptyState from '../../../components/ui/EmptyState';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 // Searchable Select Component (Premium)
 const SearchableSelect = ({ value, onChange, options, placeholder, displayKey = 'name', valueKey = 'id', disabled = false }) => {
@@ -98,6 +101,7 @@ const GroupList = () => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // Group Modal State
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -135,8 +139,12 @@ const GroupList = () => {
     ];
 
     useEffect(() => {
-        fetchGroups();
-        fetchDropdownData();
+        let cancelled = false;
+        const timer = setTimeout(() => {
+            if (!cancelled) { cancelled = true; setLoading(false); toast.error("Server javob bermadi. Sahifani yangilang."); }
+        }, 12000);
+        Promise.all([fetchGroups(), fetchDropdownData()]).finally(() => clearTimeout(timer));
+        return () => { cancelled = true; clearTimeout(timer); };
     }, []);
 
     const fetchDropdownData = async () => {
@@ -167,7 +175,7 @@ const GroupList = () => {
                 .select(`
                     *,
                     subjects (name),
-                    profiles (full_name, first_name, last_name)
+                    profiles!teacher_id (full_name, first_name, last_name)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -217,7 +225,7 @@ const GroupList = () => {
                 .select(`
                     id,
                     student_id,
-                    profiles (id, full_name, first_name, last_name)
+                    profiles!student_id (id, full_name, first_name, last_name)
                 `)
                 .eq('group_id', groupId);
 
@@ -255,7 +263,8 @@ const GroupList = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Bu guruhni o\'chirishni xohlaysizmi?')) return;
+        const confirmed = await confirmToast('Bu guruhni o\'chirishni xohlaysizmi?', { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
         try {
             const { error } = await supabase.from('groups').delete().eq('id', id);
             if (error) throw error;
@@ -360,7 +369,8 @@ const GroupList = () => {
     };
 
     const handleRemoveStudent = async (enrollmentId) => {
-        if (!window.confirm('O\'quvchini guruhdan chiqarishni xohlaysizmi?')) return;
+        const confirmed = await confirmToast('O\'quvchini guruhdan chiqarishni xohlaysizmi?', { confirmLabel: "Ha, chiqarish", type: 'warning' });
+        if (!confirmed) return;
         try {
             const { error } = await supabase.from('enrollments').delete().eq('id', enrollmentId);
             if (error) throw error;
@@ -391,44 +401,7 @@ const GroupList = () => {
         }
     };
 
-    const handleExport = () => {
-        if (groups.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-        const headers = ['Guruh nomi', 'Fan', "O'qituvchi", 'Jadval', "O'quvchilar", 'Holat'];
-
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
-
-        const mapDay = { 'Mon': 'Du', 'Tue': 'Se', 'Wed': 'Ch', 'Thu': 'Pa', 'Fri': 'Ju', 'Sat': 'Sh', 'Sun': 'Ya' };
-
-        const rows = groups.map(g => [
-            g.name,
-            g.subject,
-            g.teacher,
-            (g.schedule_days || []).map(d => mapDay[d] || d).join(', '),
-            g.students,
-            g.status
-        ]);
-
-        const csvContent = headers.map(escapeCSV).join(",") + "\n"
-            + rows.map(r => r.map(escapeCSV).join(",")).join("\n");
-
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '_');
-        link.setAttribute("download", `terra_groups_${dateStr}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Guruhlar ro'yxati yuklandi");
-    };
+    const handleExport = () => { if (groups.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     const filteredGroups = groups.filter(g =>
         g.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -641,12 +614,12 @@ const GroupList = () => {
             {/* Premium Group Modal */}
             <AnimatePresence>
                 {isGroupModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                             onClick={() => setIsGroupModalOpen(false)}
                         />
                         <motion.div
@@ -762,19 +735,19 @@ const GroupList = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 
             {/* Premium Students Modal */}
             <AnimatePresence>
                 {isStudentsModalOpen && selectedGroup && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setIsStudentsModalOpen(false)}
                         />
                         <motion.div
@@ -873,9 +846,18 @@ const GroupList = () => {
                                 )}
                             </div>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
+
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="Guruhlar"
+                headers={['Guruh nomi','Fan',"O'qituvchi",'Jadval',"O'quvchilar",'Holat']}
+                rows={(() => { const mapDay = {'Mon':'Du','Tue':'Se','Wed':'Ch','Thu':'Pa','Fri':'Ju','Sat':'Sh','Sun':'Ya'}; return groups.map(g => [g.name, g.subject, g.teacher, (g.schedule_days||[]).map(d=>mapDay[d]||d).join(', '), g.students, g.status]); })()}
+                filename="terra_groups"
+            />
         </div>
     );
 };

@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatsCard from '../../../components/ui/StatsCard';
 import toast from 'react-hot-toast';
+import ModalPortal from '../../../components/common/ModalPortal';
 
 const ScheduleList = () => {
     const [groups, setGroups] = useState([]);
@@ -32,60 +33,67 @@ const ScheduleList = () => {
     };
 
     useEffect(() => {
-        fetchGroups();
-    }, []);
+        let cancelled = false;
 
-    const fetchGroups = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('groups')
-                .select(`
-                    *,
-                    subjects (name),
-                    profiles (full_name, first_name, last_name)
-                `)
-                .order('name', { ascending: true });
-
-            if (error) throw error;
-
-            const groupIds = data?.map(g => g.id) || [];
-            let studentCounts = {};
-
-            if (groupIds.length > 0) {
-                const { data: enrollments } = await supabase
-                    .from('enrollments')
-                    .select('group_id')
-                    .in('group_id', groupIds);
-
-                if (enrollments) {
-                    enrollments.forEach(e => {
-                        studentCounts[e.group_id] = (studentCounts[e.group_id] || 0) + 1;
-                    });
+        const run = async () => {
+            setLoading(true);
+            // Hard timeout: if no response in 12s, stop spinner
+            const timer = setTimeout(() => {
+                if (!cancelled) {
+                    cancelled = true;
+                    setLoading(false);
+                    toast.error("Server javob bermadi. Sahifani yangilang.");
                 }
+            }, 12000);
+
+            try {
+                const [groupsRes, enrollmentsRes] = await Promise.all([
+                    supabase
+                        .from('groups')
+                        .select(`*, subjects(name), profiles!teacher_id(full_name, first_name, last_name)`)
+                        .order('name', { ascending: true }),
+                    supabase
+                        .from('enrollments')
+                        .select('group_id')
+                ]);
+
+                if (cancelled) return;
+                clearTimeout(timer);
+
+                if (groupsRes.error) throw groupsRes.error;
+
+                const enrollments = enrollmentsRes.data || [];
+                const studentCounts = {};
+                enrollments.forEach(e => {
+                    studentCounts[e.group_id] = (studentCounts[e.group_id] || 0) + 1;
+                });
+
+                const formattedGroups = (groupsRes.data || []).map(g => ({
+                    ...g,
+                    subject: g.subjects?.name || 'Noma\'lum',
+                    teacher: g.profiles?.full_name || `${g.profiles?.first_name || ''} ${g.profiles?.last_name || ''}`.trim() || 'Biriktirilmagan',
+                    studentCount: studentCounts[g.id] || 0,
+                    startTime: g.time ? String(g.time).substring(0, 5) : '',
+                    endTime: g.end_time ? String(g.end_time).substring(0, 5) : ''
+                }));
+
+                setGroups(formattedGroups);
+                if (formattedGroups.length > 0) {
+                    setExpandedGroups({ [formattedGroups[0].id]: true });
+                }
+            } catch (err) {
+                if (cancelled) return;
+                clearTimeout(timer);
+                console.error('Error fetching groups:', err);
+                toast.error("Dars jadvallarini yuklashda xatolik");
+            } finally {
+                if (!cancelled) setLoading(false);
             }
+        };
 
-            const formattedGroups = data?.map(g => ({
-                ...g,
-                subject: g.subjects?.name || 'Noma\'lum',
-                teacher: g.profiles?.full_name || `${g.profiles?.first_name || ''} ${g.profiles?.last_name || ''}`.trim() || 'Biriktirilmagan',
-                studentCount: studentCounts[g.id] || 0,
-                startTime: g.time ? String(g.time).substring(0, 5) : '',
-                endTime: g.end_time ? String(g.end_time).substring(0, 5) : ''
-            })) || [];
-
-            setGroups(formattedGroups);
-
-            // Expand first group by default as a demo if valid
-            if (formattedGroups.length > 0) {
-                setExpandedGroups({ [formattedGroups[0].id]: true });
-            }
-        } catch (err) {
-            console.error('Error fetching groups:', err);
-            toast.error("Dars jadvallarini yuklashda xatolik");
-        } finally {
-            setLoading(false);
-        }
-    };
+        run();
+        return () => { cancelled = true; };
+    }, []);
 
     const toggleGroup = (groupId) => {
         setExpandedGroups(prev => ({

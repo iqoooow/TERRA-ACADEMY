@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { ArrowUp, ArrowDown, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
@@ -93,17 +93,17 @@ const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, 
 
     if (loading) {
         return (
-            <div className="glass-card p-6 h-full flex flex-col justify-between">
-                <div className="flex justify-between items-start mb-6">
+            <div className="glass-card p-4 sm:p-6 h-full flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
                     <div className="w-full">
-                        <div className="skeleton h-3 w-1/2 mb-3"></div>
-                        <div className="skeleton h-8 w-3/4"></div>
+                        <div className="skeleton h-2.5 w-1/2 mb-2"></div>
+                        <div className="skeleton h-7 w-3/4"></div>
                     </div>
-                    <div className="skeleton h-12 w-12 shrink-0"></div>
+                    <div className="skeleton h-10 w-10 shrink-0 rounded-xl"></div>
                 </div>
                 <div className="flex gap-2">
-                    <div className="skeleton h-6 w-16"></div>
-                    <div className="skeleton h-6 w-24"></div>
+                    <div className="skeleton h-5 w-14"></div>
+                    <div className="skeleton h-5 w-20"></div>
                 </div>
             </div>
         );
@@ -114,23 +114,22 @@ const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1, type: "spring", stiffness: 100 }}
-            whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            className="group glass-card p-6 relative overflow-hidden h-full flex flex-col justify-between"
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="group glass-card p-4 sm:p-6 relative overflow-hidden h-full flex flex-col justify-between"
         >
-            {/* Background Decorative Blob */}
             <div className={cn(
-                "absolute -right-8 -top-8 w-32 h-32 rounded-full blur-[60px] opacity-20 transition-all duration-500 group-hover:opacity-30 group-hover:scale-125",
+                "absolute -right-8 -top-8 w-28 h-28 rounded-full blur-[60px] opacity-20 transition-all duration-500 group-hover:opacity-30",
                 currentVariant.blob
             )}></div>
 
-            <div className="flex justify-between items-start mb-6 relative z-10">
-                <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{title}</p>
+            <div className="flex justify-between items-start mb-3 sm:mb-6 relative z-10">
+                <div className="flex-1 min-w-0">
+                    <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 sm:mb-2 truncate">{title}</p>
                     <motion.h3
                         key={value}
                         initial={{ scale: 0.95, opacity: 0.5 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="text-3xl font-black text-slate-900 tracking-tight truncate pr-2"
+                        className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight truncate pr-1"
                         title={typeof value === 'string' ? value : ''}
                     >
                         {value}
@@ -138,25 +137,25 @@ const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, 
                 </div>
 
                 <div className={cn(
-                    "p-3 rounded-2xl transition-all duration-300 shadow-sm group-hover:shadow-md group-hover:scale-110",
+                    "p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-300 shadow-sm shrink-0 group-hover:scale-110",
                     currentVariant.iconBg
                 )}>
-                    {Icon && <Icon size={24} strokeWidth={2.5} />}
+                    {Icon && <Icon size={20} strokeWidth={2.5} />}
                 </div>
             </div>
 
             {change && (
-                <div className="flex items-center gap-2 relative z-10 mt-auto">
+                <div className="flex items-center gap-1.5 relative z-10 mt-auto flex-wrap">
                     <div className={cn(
-                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-colors",
+                        "flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold",
                         isPositive ? "bg-emerald-500/10 text-emerald-600" :
                             isNegative ? "bg-rose-500/10 text-rose-600" :
                                 "bg-slate-100 text-slate-500"
                     )}>
-                        {isPositive ? <TrendingUp size={14} /> : isNegative ? <TrendingDown size={14} /> : <Minus size={14} />}
+                        {isPositive ? <TrendingUp size={11} /> : isNegative ? <TrendingDown size={11} /> : <Minus size={11} />}
                         {change}
                     </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">
                         {trendLabel}
                     </span>
                 </div>
@@ -165,4 +164,4 @@ const StatsCard = ({ title, value, change, icon: Icon, color = "blue", idx = 0, 
     );
 };
 
-export default StatsCard;
+export default memo(StatsCard);

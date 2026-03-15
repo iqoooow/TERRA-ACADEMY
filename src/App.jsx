@@ -12,6 +12,7 @@ import NotFound from './pages/NotFound';
 
 // Auth Pages
 const Login = lazy(() => import('./pages/auth/Login'));
+const ReceiptPage = lazy(() => import('./pages/public/ReceiptPage'));
 
 // Onboarding
 const FirstLoginSetup = lazy(() => import('./pages/onboarding/FirstLoginSetup'));
@@ -76,6 +77,7 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />
+            <Route path="/receipt" element={<ReceiptPage />} />
 
             {/* First Login Setup — authenticated, any role, no sidebar layout */}
             <Route element={<ProtectedRoute allowedRoles={['owner', 'admin', 'teacher', 'student', 'parent']} />}>

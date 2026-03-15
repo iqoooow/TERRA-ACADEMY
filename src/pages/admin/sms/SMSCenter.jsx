@@ -49,12 +49,12 @@ const SMSCenter = () => {
             let query = supabase
                 .from('sms_logs')
                 .select(`
-                    id, phone, message, status, provider,
-                    trigger_event, sent_at, error_message, created_at,
+                    id, phone, message, status,
+                    trigger_event, error_message, created_at,
                     student:student_id (full_name, first_name, last_name)
                 `)
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(50);
 
             if (filterStatus !== 'all') query = query.eq('status', filterStatus);
             if (filterEvent !== 'all') query = query.eq('trigger_event', filterEvent);
@@ -286,7 +286,7 @@ const SMSCenter = () => {
                         </button>
                     </div>
 
-                    {/* Logs Table */}
+                    {/* Logs */}
                     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                         {loadingLogs ? (
                             <div className="flex items-center justify-center py-20">
@@ -295,93 +295,117 @@ const SMSCenter = () => {
                         ) : filteredLogs.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-3">
                                 <MessageSquare size={40} className="text-slate-200" />
-                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">
-                                    SMS tarixi topilmadi
-                                </p>
+                                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">SMS tarixi topilmadi</p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-slate-100 bg-slate-50">
-                                            <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">O'quvchi</th>
-                                            <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Telefon</th>
-                                            <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Tur</th>
-                                            <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Xabar</th>
-                                            <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
-                                            <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Vaqt</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {filteredLogs.map((log, idx) => {
-                                            const profile = log.student;
-                                            const studentName = profile?.full_name ||
-                                                [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') ||
-                                                '—';
-                                            const eventInfo = TRIGGER_LABELS[log.trigger_event] || {
-                                                label: log.trigger_event || '—',
-                                                color: 'bg-slate-100 text-slate-600'
-                                            };
-                                            const statusInfo = STATUS_CONFIG[log.status] || STATUS_CONFIG.pending;
-                                            const StatusIcon = statusInfo.icon;
+                            <>
+                                {/* ── Mobile Cards (< md) ── */}
+                                <div className="md:hidden divide-y divide-slate-50">
+                                    {filteredLogs.map((log, idx) => {
+                                        const profile = log.student;
+                                        const studentName = profile?.full_name ||
+                                            [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || '—';
+                                        const eventInfo = TRIGGER_LABELS[log.trigger_event] || { label: log.trigger_event || '—', color: 'bg-slate-100 text-slate-600' };
+                                        const statusInfo = STATUS_CONFIG[log.status] || STATUS_CONFIG.pending;
+                                        const StatusIcon = statusInfo.icon;
+                                        return (
+                                            <motion.div
+                                                key={log.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: idx * 0.02 }}
+                                                className="p-4 space-y-2"
+                                            >
+                                                {/* Row 1: avatar + name + status */}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-xs shrink-0">
+                                                        {studentName[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-slate-800 text-sm truncate">{studentName}</p>
+                                                        <p className="font-mono text-[10px] text-slate-400">{log.phone || '—'}</p>
+                                                    </div>
+                                                    <div className={cn('inline-flex items-center gap-1 px-2 py-1 rounded-lg shrink-0', statusInfo.bg)}>
+                                                        <StatusIcon size={11} className={statusInfo.color} />
+                                                        <span className={cn('text-[9px] font-black uppercase', statusInfo.color)}>{statusInfo.label}</span>
+                                                    </div>
+                                                </div>
+                                                {/* Row 2: type + time */}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={cn('px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide', eventInfo.color)}>
+                                                        {eventInfo.label}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                        {log.created_at ? format(new Date(log.created_at), 'dd MMM, HH:mm', { locale: uz }) : '—'}
+                                                    </span>
+                                                </div>
+                                                {/* Row 3: message */}
+                                                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{log.message}</p>
+                                                {log.error_message && (
+                                                    <p className="text-[10px] text-rose-500 font-medium line-clamp-1">{log.error_message}</p>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
 
-                                            return (
-                                                <motion.tr
-                                                    key={log.id}
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    transition={{ delay: idx * 0.02 }}
-                                                    className="hover:bg-slate-50 transition-colors"
-                                                >
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-xs shrink-0">
-                                                                {studentName[0]?.toUpperCase() || '?'}
+                                {/* ── Desktop Table (≥ md) ── */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 bg-slate-50">
+                                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">O'quvchi</th>
+                                                <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Telefon</th>
+                                                <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Tur</th>
+                                                <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Xabar</th>
+                                                <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                                <th className="px-4 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Vaqt</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {filteredLogs.map((log, idx) => {
+                                                const profile = log.student;
+                                                const studentName = profile?.full_name ||
+                                                    [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || '—';
+                                                const eventInfo = TRIGGER_LABELS[log.trigger_event] || { label: log.trigger_event || '—', color: 'bg-slate-100 text-slate-600' };
+                                                const statusInfo = STATUS_CONFIG[log.status] || STATUS_CONFIG.pending;
+                                                const StatusIcon = statusInfo.icon;
+                                                return (
+                                                    <motion.tr key={log.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-xs shrink-0">
+                                                                    {studentName[0]?.toUpperCase() || '?'}
+                                                                </div>
+                                                                <span className="font-bold text-slate-800 text-sm">{studentName}</span>
                                                             </div>
-                                                            <span className="font-bold text-slate-800 text-sm">{studentName}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-4">
-                                                        <span className="font-mono text-xs text-slate-600">{log.phone || '—'}</span>
-                                                    </td>
-                                                    <td className="px-4 py-4">
-                                                        <span className={cn(
-                                                            'px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide',
-                                                            eventInfo.color
-                                                        )}>
-                                                            {eventInfo.label}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-4 max-w-[280px]">
-                                                        <p className="text-xs text-slate-600 line-clamp-2">{log.message}</p>
-                                                        {log.error_message && (
-                                                            <p className="text-[10px] text-rose-500 mt-0.5 font-medium">{log.error_message}</p>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-4">
-                                                        <div className={cn(
-                                                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg',
-                                                            statusInfo.bg
-                                                        )}>
-                                                            <StatusIcon size={12} className={statusInfo.color} />
-                                                            <span className={cn('text-[10px] font-black uppercase', statusInfo.color)}>
-                                                                {statusInfo.label}
+                                                        </td>
+                                                        <td className="px-4 py-4"><span className="font-mono text-xs text-slate-600">{log.phone || '—'}</span></td>
+                                                        <td className="px-4 py-4">
+                                                            <span className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide', eventInfo.color)}>{eventInfo.label}</span>
+                                                        </td>
+                                                        <td className="px-4 py-4 max-w-[260px]">
+                                                            <p className="text-xs text-slate-600 line-clamp-2">{log.message}</p>
+                                                            {log.error_message && <p className="text-[10px] text-rose-500 mt-0.5 font-medium line-clamp-1">{log.error_message}</p>}
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg', statusInfo.bg)}>
+                                                                <StatusIcon size={12} className={statusInfo.color} />
+                                                                <span className={cn('text-[10px] font-black uppercase', statusInfo.color)}>{statusInfo.label}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                                                                {log.created_at ? format(new Date(log.created_at), 'dd MMM, HH:mm', { locale: uz }) : '—'}
                                                             </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-4">
-                                                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                                                            {log.created_at
-                                                                ? format(new Date(log.created_at), 'dd MMM, HH:mm', { locale: uz })
-                                                                : '—'}
-                                                        </span>
-                                                    </td>
-                                                </motion.tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                        </td>
+                                                    </motion.tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

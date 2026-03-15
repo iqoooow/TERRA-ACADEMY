@@ -10,6 +10,8 @@ import { supabase } from '../../../lib/supabase';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const Section = ({ title, icon: Icon, children, className = '' }) => (
     <div className={`bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden ${className}`}>
@@ -96,7 +98,8 @@ const TeacherProfile = () => {
     };
 
     const handleResetPassword = async () => {
-        if (!window.confirm("Parolni 'terraAcademy' ga qaytarmoqchimisiz?")) return;
+        const confirmed = await confirmToast("Parolni 'terraAcademy' ga qaytarmoqchimisiz?", { confirmLabel: "Ha, qaytarish", type: 'warning' });
+        if (!confirmed) return;
         if (!supabaseAdmin) {
             toast.error('Admin client mavjud emas. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo\'shing.');
             return;
@@ -325,7 +328,7 @@ const TeacherProfile = () => {
 
             {/* Edit Modal */}
             {showEditModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <ModalPortal><div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xl" onClick={() => setShowEditModal(false)} />
                     <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="relative z-10 bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl">
@@ -366,7 +369,7 @@ const TeacherProfile = () => {
                             </div>
                         </form>
                     </motion.div>
-                </div>
+                </div></ModalPortal>
             )}
         </div>
     );

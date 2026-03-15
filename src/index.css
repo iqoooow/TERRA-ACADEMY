@@ -148,6 +148,9 @@
   animation: fade-in 0.5s ease-out both;
 }
 
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -204,20 +207,30 @@
    PRINT STYLES — Receipt modal only
    ============================================= */
 @media print {
-  body > * { display: none !important; }
+  /* Hide everything but keep layout intact (visibility can be overridden by children, display:none cannot) */
+  body > * { visibility: hidden !important; }
+
+  /* Show receipt and all its children */
   .receipt-modal {
-    display: block !important;
+    visibility: visible !important;
     position: fixed !important;
     inset: 0 !important;
-    max-width: 100% !important;
+    max-width: 480px !important;
     width: 100% !important;
+    margin: auto !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 2rem !important;
     overflow: visible !important;
     z-index: 9999 !important;
+    background: white !important;
   }
-  .receipt-exclude { display: none !important; }
+  .receipt-modal * { visibility: visible !important; }
+
+  /* Hide close/print button and backdrop inside receipt */
+  .receipt-exclude,
+  .receipt-modal button { display: none !important; }
+
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

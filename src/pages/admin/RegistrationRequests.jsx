@@ -6,43 +6,17 @@ import { toast } from 'react-hot-toast';
 import Table, { TableRow, TableCell } from '../../components/ui/Table';
 import StatsCard from '../../components/ui/StatsCard';
 import EmptyState from '../../components/ui/EmptyState';
+import ExportModal from '../../components/common/ExportModal';
+import ModalPortal from '../../components/common/ModalPortal';
 
 const RegistrationRequests = () => {
     const [parentLinks, setParentLinks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
-    const handleExport = () => {
-        if (!parentLinks.length) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            return str.includes(',') || str.includes('"') || str.includes('\n')
-                ? `"${str.replace(/"/g, '""')}"` : str;
-        };
-
-        const headers = ['Ota-ona', 'Farzand', 'Farzand kodi', 'Sana'];
-        const rows = parentLinks.map(l => [
-            `${l.parent?.first_name || ''} ${l.parent?.last_name || ''}`.trim(),
-            `${l.student?.first_name || ''} ${l.student?.last_name || ''}`.trim(),
-            l.student?.student_code || '',
-            new Date(l.created_at).toLocaleDateString()
-        ]);
-        let csvContent = headers.map(escapeCSV).join(',') + '\n' + rows.map(r => r.map(escapeCSV).join(',')).join('\n');
-
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `arizalar_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        toast.success('Hisobot yuklab olindi');
-    };
+    const handleExport = () => { if (parentLinks.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     const fetchData = async () => {
         setLoading(true);
@@ -235,10 +209,19 @@ const RegistrationRequests = () => {
                 </motion.div>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="Bog'lanishlar"
+                headers={['Ota-ona','Farzand','Farzand kodi','Sana']}
+                rows={parentLinks.map(l => [`${l.parent?.first_name||''} ${l.parent?.last_name||''}`.trim(), `${l.student?.first_name||''} ${l.student?.last_name||''}`.trim(), l.student?.student_code||'-', new Date(l.created_at).toLocaleDateString()])}
+                filename="arizalar"
+            />
+
             {/* Premium Confirmation Modal */}
             <AnimatePresence>
                 {selectedRequest && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -289,7 +272,7 @@ const RegistrationRequests = () => {
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

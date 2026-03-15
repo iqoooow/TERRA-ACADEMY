@@ -4,15 +4,20 @@ import { Search, Pencil, Trash2, X, Users, UserPlus, Download, Zap, ShieldCheck,
 import { useNavigate } from 'react-router-dom';
 import CreateUserModal from '../users/CreateUserModal';
 import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import StatsCard from '../../../components/ui/StatsCard';
 import EmptyState from '../../../components/ui/EmptyState';
 import { format } from 'date-fns';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const ParentList = () => {
     const navigate = useNavigate();
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [parents, setParents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
@@ -70,49 +75,22 @@ const ParentList = () => {
         }
     };
 
-    const handleExport = () => {
-        if (parents.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q");
-        const headers = ['F.I.O', 'Telefon', 'Holati'];
-
-        const escapeCSV = (val) => {
-            if (val === null || val === undefined) return '';
-            const str = String(val);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
-
-        const rows = parents.map(p => [
-            p.full_name || `${p.first_name} ${p.last_name}`,
-            p.phone,
-            p.status
-        ]);
-
-        const csvContent = headers.map(escapeCSV).join(",") + "\n"
-            + rows.map(r => r.map(escapeCSV).join(",")).join("\n");
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `terra_parents_${format(new Date(), 'yyyy_MM_dd')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Ota-onalar ro'yxati yuklandi");
-    };
+    const handleExport = () => { if (parents.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Haqiqatan ham bu ota-onani o\'chirmoqchimisiz?')) return;
+        const confirmed = await confirmToast('Haqiqatan ham bu ota-onani o\'chirmoqchimisiz?', { confirmLabel: "Ha, o'chirish", type: 'danger' });
+        if (!confirmed) return;
         try {
-            const { error } = await supabase.from('profiles').delete().eq('id', id);
+            const client = supabaseAdmin || supabase;
+            await client.from('payment_audit_logs').delete().eq('changed_by', id);
+            const { error } = await client.from('profiles').delete().eq('id', id);
             if (error) throw error;
+            if (supabaseAdmin) await supabaseAdmin.auth.admin.deleteUser(id);
             toast.success("Ota-ona o'chirildi");
             fetchParents(currentPage);
         } catch (err) {
             console.error('Error deleting parent:', err);
-            toast.error("O'chirishda xatolik");
+            toast.error(`O'chirishda xatolik: ${err.message || 'Noma\'lum xato'}`);
         }
     };
 
@@ -190,9 +168,10 @@ const ParentList = () => {
                 const { error } = await supabase
                     .from('profiles')
                     .update({
-                        first_name: formData.first_name,
-                        last_name: formData.last_name,
-                        phone: formData.phone,
+                        first_name: formData.first_name.trim(),
+                        last_name: formData.last_name.trim(),
+                        full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+                        phone: formData.phone.trim(),
                     })
                     .eq('id', editingParent.id);
                 if (error) throw error;
@@ -391,15 +370,24 @@ const ParentList = () => {
                 </div>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="Ota-onalar"
+                headers={['F.I.O','Telefon','Holati']}
+                rows={parents.map(p => [p.full_name||`${p.first_name||''} ${p.last_name||''}`.trim(), p.phone||'-', p.status||'-'])}
+                filename="terra_parents"
+            />
+
             {/* Premium Modal */}
             <AnimatePresence>
                 {isFormatModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                             onClick={() => setIsFormatModalOpen(false)}
                         />
                         <motion.div
@@ -476,17 +464,17 @@ const ParentList = () => {
                                 </div>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 
             {/* Farzand Qo'shish Modal */}
             <AnimatePresence>
                 {linkModal && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setLinkModal(null)}
                         />
                         <motion.div
@@ -599,7 +587,7 @@ const ParentList = () => {
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 

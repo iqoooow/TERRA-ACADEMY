@@ -8,9 +8,11 @@ import {
     ChevronRight, X, Save, Users, GraduationCap
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import ModalPortal from '../../../components/common/ModalPortal';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
+import { confirmToast } from '../../../utils/confirmToast';
 
 const inputClass = "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-slate-800 placeholder:text-slate-400 font-medium text-sm";
 const labelClass = "block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5";
@@ -238,7 +240,8 @@ const ParentProfile = () => {
 
     // ── Reset password ─────────────────────────────────────────
     const handleResetPassword = async () => {
-        if (!window.confirm("Parolni 'terraAcademy' ga qaytarmoqchimisiz?")) return;
+        const confirmed = await confirmToast("Parolni 'terraAcademy' ga qaytarmoqchimisiz?", { confirmLabel: "Ha, qaytarish", type: 'warning' });
+        if (!confirmed) return;
         if (!supabaseAdmin) {
             toast.error('Admin client mavjud emas. VITE_SUPABASE_SERVICE_ROLE_KEY ni .env ga qo\'shing.');
             return;
@@ -597,7 +600,7 @@ const ParentProfile = () => {
             {/* ── Edit Modal ─────────────────────────────────────── */}
             <AnimatePresence>
                 {showEditModal && (
-                    <motion.div
+                    <ModalPortal><motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
                         onClick={(e) => e.target === e.currentTarget && setShowEditModal(false)}
@@ -654,7 +657,7 @@ const ParentProfile = () => {
                                 </motion.button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </motion.div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

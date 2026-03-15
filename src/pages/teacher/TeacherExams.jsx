@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import ModalPortal from '../../components/common/ModalPortal';
 
 const TeacherExams = () => {
     const { user } = useAuth();
@@ -266,7 +267,7 @@ const TeacherExams = () => {
             {/* Modal */}
             <AnimatePresence>
                 {modalOpen && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    <ModalPortal><div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
                         onClick={() => !saving && setModalOpen(false)}>
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
@@ -327,7 +328,7 @@ const TeacherExams = () => {
                                 </button>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

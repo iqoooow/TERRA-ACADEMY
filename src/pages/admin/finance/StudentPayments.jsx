@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmptyState from '../../../components/ui/EmptyState';
 import { cn } from '../../../utils/cn';
+import ExportModal from '../../../components/common/ExportModal';
+import ModalPortal from '../../../components/common/ModalPortal';
 
 const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 
@@ -29,6 +31,7 @@ const STATUS_CONFIG = {
 
 const StudentPayments = () => {
     const [loading, setLoading] = useState(true);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [students, setStudents] = useState([]);
     const [payments, setPayments] = useState({});
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -160,29 +163,7 @@ const StudentPayments = () => {
         }
     };
 
-    const handleExport = () => {
-        const rows = filteredStudents.map(student => {
-            const pay = payments[student.id];
-            const group = student.enrollments?.[0]?.groups;
-            const expected = Number(pay?.final_amount || group?.price || 0);
-            const paid = Number(pay?.amount_paid || 0);
-            const remaining = Number(pay?.remaining_amount ?? expected);
-            const status = STATUS_CONFIG[pay?.status || 'pending']?.label || "To'lanmagan";
-            return [student.full_name, student.phone || '-', group?.name || 'Guruhsiz',
-                expected, paid, remaining, status].join(',');
-        });
-        const csv = ["F.I.O,Telefon,Guruh,Hisob,To'landi,Qoldiq,Holat", ...rows].join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `tolovlar_${MONTHS[selectedMonth - 1]}_${selectedYear}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        toast.success("Hisobot yuklandi");
-    };
+    const handleExport = () => { if (filteredStudents.length === 0) return toast.error("Eksport qilish uchun ma'lumot yo'q"); setShowExportModal(true); };
 
     const stats = useMemo(() => {
         const vals = Object.values(payments);
@@ -505,13 +486,30 @@ const StudentPayments = () => {
                 </>
             )}
 
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="To'lovlar"
+                headers={["F.I.O","Telefon","Guruh","Hisob","To'landi","Qoldiq","Holat"]}
+                rows={filteredStudents.map(student => {
+                    const pay = payments[student.id];
+                    const group = student.enrollments?.[0]?.groups;
+                    const expected = Number(pay?.final_amount || group?.price || 0);
+                    const paid = Number(pay?.amount_paid || 0);
+                    const remaining = Number(pay?.remaining_amount ?? expected);
+                    const status = STATUS_CONFIG[pay?.status || 'pending']?.label || "To'lanmagan";
+                    return [student.full_name, student.phone||'-', group?.name||'Guruhsiz', expected, paid, remaining, status];
+                })}
+                filename="terra_tolovlar"
+            />
+
             {/* ── Transaction Modal ── */}
             <AnimatePresence>
                 {isTxModalOpen && selectedStudent && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-900/50 backdrop-blur-xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setIsTxModalOpen(false)}
                         />
                         <motion.div
@@ -651,7 +649,7 @@ const StudentPayments = () => {
                                 </div>
                             </div>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>

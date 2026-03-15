@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../../../lib/supabase';
 import { smsService } from '../../../lib/smsService';
 import {
@@ -15,6 +16,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import { cn } from '../../../utils/cn';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
+import ModalPortal from '../../../components/common/ModalPortal';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart as RePieChart, Pie, Cell
@@ -82,7 +84,7 @@ const FinancialCenter = () => {
             const [enrollmentsRes, paymentsRes, txsRes] = await Promise.all([
                 supabase.from('enrollments').select('student_id, groups(id, name, price)').in('student_id', studentIds),
                 supabase.from('monthly_payments')
-                    .select('*')
+                    .select('id, student_id, group_id, status, final_amount, paid_amount, due_date, payment_month, payment_year')
                     .eq('payment_month', selectedMonth)
                     .eq('payment_year', selectedYear),
                 supabase.from('payment_transactions')
@@ -146,6 +148,145 @@ const FinancialCenter = () => {
         setIsTxModalOpen(true);
     };
 
+    const handleDownloadPDF = async () => {
+        const [{ default: jsPDF }, QRCode] = await Promise.all([
+            import('jspdf'),
+            import('qrcode'),
+        ]);
+        const r = receiptData;
+        const txnId = `TXN-${r.id?.slice(-8).toUpperCase()}`;
+        const dateStr = format(new Date(r.created_at), 'dd.MM.yyyy HH:mm');
+        const methodLabels = { cash: "Naqd pul", card: "Bank kartasi", transfer: "Bank o'tkazmasi", online: "Online to'lov" };
+        const methodLabel = methodLabels[r.method] || r.method;
+
+        // Receipt-style format 80mm wide
+        const doc = new jsPDF({ format: [80, 170], unit: 'mm' });
+        const W = 80;
+
+        // ── Dark blue header ──
+        doc.setFillColor(30, 58, 138);
+        doc.rect(0, 0, W, 44, 'F');
+
+        // Decorative circles
+        doc.setFillColor(255, 255, 255);
+        doc.setGState(doc.GState({ opacity: 0.04 }));
+        doc.circle(72, 4, 18, 'F');
+        doc.circle(-4, 40, 20, 'F');
+        doc.setGState(doc.GState({ opacity: 1 }));
+
+        // Logo box
+        doc.setFillColor(255, 255, 255);
+        doc.setGState(doc.GState({ opacity: 0.15 }));
+        doc.roundedRect(5, 5, 10, 10, 2, 2, 'F');
+        doc.setGState(doc.GState({ opacity: 1 }));
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TA', 10, 12, { align: 'center' });
+
+        // Company name
+        doc.setFontSize(12);
+        doc.text('TERRA ACADEMY', 19, 11);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.setTextColor(147, 197, 253);
+        doc.text("O'quv markazi boshqaruv tizimi", 19, 16);
+
+        // Status badge
+        doc.setFillColor(52, 211, 153);
+        doc.setGState(doc.GState({ opacity: 0.2 }));
+        doc.roundedRect(5, 22, 34, 6, 2, 2, 'F');
+        doc.setGState(doc.GState({ opacity: 1 }));
+        doc.setTextColor(167, 243, 208);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6);
+        doc.text("TO'LOV TASDIQLANDI", 22, 26.5, { align: 'center' });
+
+        // Amount label + value
+        doc.setTextColor(219, 234, 254);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.text("JAMI TO'LOV SUMMASI", 5, 34);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.text(`${Number(r.amount).toLocaleString()} UZS`, 5, 42);
+
+        // ── Perforated edge ──
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.line(5, 47, W - 5, 47);
+        doc.setLineDashPattern([], 0);
+
+        // ── Details ──
+        const rows = [
+            ["O'QUVCHI",        r.studentName],
+            ['GURUH',           r.groupName],
+            ["TO'LOV OYI",      `${r.paymentMonth} / ${r.paymentYear}`],
+            ["TO'LOV USULI",    methodLabel],
+            ['SANA VA VAQT',    dateStr],
+        ];
+        if (r.note) rows.push(['IZOH', r.note]);
+        rows.push(['TRANZAKSIYA ID', txnId]);
+
+        let y = 54;
+        rows.forEach(([label, value], i) => {
+            if (i > 0) {
+                doc.setDrawColor(241, 245, 249);
+                doc.line(5, y - 2, W - 5, y - 2);
+            }
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(5.5);
+            doc.setTextColor(148, 163, 184);
+            doc.text(label, 5, y + 2);
+
+            const isId = label === 'TRANZAKSIYA ID';
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(isId ? 7 : 8.5);
+            doc.setTextColor(isId ? 37 : 15, isId ? 99 : 23, isId ? 235 : 42);
+            const val = String(value ?? '—');
+            doc.text(val.length > 24 ? val.slice(0, 24) + '…' : val, W - 5, y + 2, { align: 'right' });
+            y += 11;
+        });
+
+        // ── QR code ──
+        y += 3;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(5, y, W - 10, 42, 3, 3, 'F');
+
+        const qrUrl = `https://terra-academy.vercel.app/receipt?${new URLSearchParams({
+            txn: txnId, name: r.studentName, group: r.groupName,
+            amount: String(r.amount), method: r.method,
+            date: dateStr, month: `${r.paymentMonth}/${r.paymentYear}`,
+        })}`;
+        try {
+            const qrDataUrl = await QRCode.default.toDataURL(qrUrl, {
+                width: 220, margin: 1,
+                color: { dark: '#0f172a', light: '#f8fafc' },
+            });
+            const qrSz = 30;
+            doc.addImage(qrDataUrl, 'PNG', (W - qrSz) / 2, y + 4, qrSz, qrSz);
+        } catch { /* skip QR if fails */ }
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Skanerlang — kvitansiyani ko'ring", W / 2, y + 38, { align: 'center' });
+
+        // ── Footer ──
+        const fy = y + 46;
+        doc.setFillColor(30, 58, 138);
+        doc.rect(0, fy, W, 14, 'F');
+        doc.setTextColor(147, 197, 253);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5.5);
+        doc.text('Terra Academy • Rasmiy moliyaviy hujjat', W / 2, fy + 5, { align: 'center' });
+        doc.setTextColor(99, 132, 199);
+        doc.text('terra-academy.vercel.app', W / 2, fy + 10, { align: 'center' });
+
+        doc.save(`chek-${txnId}.pdf`);
+    };
+
     const handleProcessPayment = async (e) => {
         e.preventDefault();
         if (!txAmount || Number(txAmount) <= 0) return toast.error("Summa noto'g'ri");
@@ -169,7 +310,7 @@ const FinancialCenter = () => {
                         status: 'pending',
                         due_date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-10`
                     })
-                    .select().single();
+                    .select('id').single();
                 if (pErr) throw pErr;
                 paymentId = newPay.id;
             }
@@ -184,15 +325,26 @@ const FinancialCenter = () => {
                     note: txNote || null,
                     performed_by: user.id
                 })
-                .select('*, monthly_payments!payment_id(id, profiles!student_id(full_name))')
+                .select('id, amount, method, created_at')
                 .single();
             if (txErr) throw txErr;
 
             toast.success("To'lov muvaffaqiyatli qabul qilindi!");
             setIsTxModalOpen(false);
 
-            // Show receipt
-            setReceiptData(newTx);
+            // Build receipt from known state (don't rely on join result)
+            setReceiptData({
+                id: newTx.id,
+                amount: Number(txAmount),
+                method: txMethod,
+                note: txNote || null,
+                created_at: newTx.created_at || new Date().toISOString(),
+                studentName: selectedStudent.full_name || [selectedStudent.first_name, selectedStudent.last_name].filter(Boolean).join(' ') || '—',
+                studentCode: selectedStudent.student_code || '—',
+                groupName: selectedStudent.group?.name || '—',
+                paymentMonth: selectedMonth,
+                paymentYear: selectedYear,
+            });
             setShowReceipt(true);
 
             // Send payment confirmed SMS (fire-and-forget)
@@ -270,45 +422,45 @@ const FinancialCenter = () => {
                 <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px]"></div>
                 <div className="absolute bottom-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]"></div>
 
-                <div className="relative z-10 p-5 sm:p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10">
+                <div className="relative z-10 p-4 sm:p-8 md:p-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-4 md:mb-6 backdrop-blur-xl"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300 mb-3 backdrop-blur-xl"
                         >
-                            <TrendingUp size={14} className="text-blue-400" />
+                            <TrendingUp size={12} className="text-blue-400" />
                             Financial Intelligence Center
                         </motion.div>
-                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 leading-none italic">
+                        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tighter mb-2 leading-none italic">
                             Terra <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 not-italic">Capital.</span>
                         </h1>
-                        <p className="text-slate-400 font-medium text-base md:text-xl max-w-xl leading-relaxed">
-                            {MONTHS[selectedMonth - 1]} {selectedYear} hisoboti — tizimning moliyaviy barqarorligi tahlili.
+                        <p className="text-slate-400 font-medium text-sm md:text-base max-w-xl leading-relaxed">
+                            {MONTHS[selectedMonth - 1]} {selectedYear} hisoboti — moliyaviy barqarorlik tahlili.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 shrink-0">
-                        <div className="bg-white/5 border border-white/10 backdrop-blur-2xl px-8 py-6 rounded-[2.5rem] min-w-[200px] group hover:bg-white/10 transition-all">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2 block flex items-center gap-2">
-                                <ArrowUpRight size={12} /> Tushum
+                    <div className="grid grid-cols-2 gap-3 w-full md:w-auto md:shrink-0">
+                        <div className="bg-white/5 border border-white/10 backdrop-blur-2xl px-4 sm:px-6 py-4 rounded-2xl sm:rounded-[2rem] group hover:bg-white/10 transition-all">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1 flex items-center gap-1">
+                                <ArrowUpRight size={10} /> Tushum
                             </span>
-                            <div className="font-black text-white text-3xl tracking-tighter tabular-nums flex items-baseline gap-1">
-                                {stats.totalReceived.toLocaleString()} <span className="text-[10px] text-slate-500 italic">uzs</span>
+                            <div className="font-black text-white text-xl sm:text-2xl tracking-tighter tabular-nums">
+                                {stats.totalReceived.toLocaleString()} <span className="text-[9px] text-slate-500 italic">uzs</span>
                             </div>
                         </div>
-                        <div className="bg-white/5 border border-white/10 backdrop-blur-2xl px-8 py-6 rounded-[2.5rem] min-w-[200px] group hover:bg-white/10 transition-all">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-2 block flex items-center gap-2">
-                                <ArrowDownLeft size={12} /> Qarz
+                        <div className="bg-white/5 border border-white/10 backdrop-blur-2xl px-4 sm:px-6 py-4 rounded-2xl sm:rounded-[2rem] group hover:bg-white/10 transition-all">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-1 flex items-center gap-1">
+                                <ArrowDownLeft size={10} /> Qarz
                             </span>
-                            <div className="font-black text-rose-400 text-3xl tracking-tighter tabular-nums flex items-baseline gap-1">
-                                {stats.debt.toLocaleString()} <span className="text-[10px] text-slate-500 italic">uzs</span>
+                            <div className="font-black text-rose-400 text-xl sm:text-2xl tracking-tighter tabular-nums">
+                                {stats.debt.toLocaleString()} <span className="text-[9px] text-slate-500 italic">uzs</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="relative z-10 px-10 pb-2 flex gap-8 border-t border-white/5">
+                <div className="relative z-10 px-3 sm:px-8 pb-2 flex gap-4 sm:gap-6 border-t border-white/5 overflow-x-auto no-scrollbar">
                     {[
                         { id: 'billing', label: 'Boshqaruv Paneli', icon: Users },
                         { id: 'transactions', label: 'Tranzaksiyalar', icon: Receipt },
@@ -343,14 +495,14 @@ const FinancialCenter = () => {
                 ].map((s, i) => (
                     <motion.div
                         key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                        className="glass-card p-6 flex items-center gap-5 group hover:-translate-y-1 transition-all"
+                        className="glass-card p-4 sm:p-6 flex items-center gap-3 sm:gap-5 group hover:-translate-y-1 transition-all min-w-0"
                     >
-                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg shrink-0 group-hover:rotate-12 transition-transform`}>
-                            <s.icon size={24} className="text-white" />
+                        <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg shrink-0 group-hover:rotate-12 transition-transform`}>
+                            <s.icon size={18} className="text-white" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                            <p className={cn("text-2xl font-black tracking-tighter", s.text)}>{s.value}</p>
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{s.label}</p>
+                            <p className={cn("text-lg sm:text-2xl font-black tracking-tighter truncate", s.text)}>{s.value}</p>
                         </div>
                     </motion.div>
                 ))}
@@ -760,10 +912,10 @@ const FinancialCenter = () => {
             {/* ── Transaction Modal ── */}
             <AnimatePresence>
                 {isTxModalOpen && selectedStudent && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/60 backdrop-blur-2xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setIsTxModalOpen(false)}
                         />
                         <motion.div
@@ -831,22 +983,22 @@ const FinancialCenter = () => {
                                 </button>
                             </form>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
 
             {/* ── Receipt Viewer Modal ── */}
             <AnimatePresence>
                 {showReceipt && receiptData && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <ModalPortal><div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-slate-950/80 backdrop-blur-3xl"
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                             onClick={() => setShowReceipt(false)}
                         />
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }}
-                            className="bg-white rounded-[2rem] w-full max-w-md relative z-10 p-10 overflow-hidden"
+                            className="receipt-modal bg-white rounded-[2rem] w-full max-w-md relative z-10 p-10 overflow-hidden"
                             style={{ backgroundImage: 'radial-gradient(circle at 50% -20%, #eff6ff 0%, transparent 50%)' }}
                         >
                             <div className="absolute top-0 right-0 p-8">
@@ -861,43 +1013,75 @@ const FinancialCenter = () => {
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">To'lov Kvitansiyasi</p>
                             </div>
 
-                            <div className="space-y-6 border-y border-slate-100 py-8 my-8">
+                            <div className="space-y-4 border-y border-slate-100 py-7 my-7">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">O'quvchi</span>
-                                    <span className="font-black text-slate-900 italic uppercase tabular-nums">{receiptData.monthly_payments?.profiles?.full_name}</span>
+                                    <span className="font-black text-slate-900 italic uppercase tabular-nums">{receiptData.studentName}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Guruh</span>
+                                    <span className="font-black text-slate-900 uppercase tabular-nums">{receiptData.groupName}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Oy / Yil</span>
+                                    <span className="font-black text-slate-900 uppercase tabular-nums">{receiptData.paymentMonth}/{receiptData.paymentYear}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sana</span>
                                     <span className="font-black text-slate-900 uppercase tabular-nums">{format(new Date(receiptData.created_at), 'dd.MM.yyyy, HH:mm')}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">To'lov Usuli</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Usul</span>
                                     <span className="font-black text-slate-900 uppercase italic tabular-nums">{receiptData.method}</span>
                                 </div>
+                                {receiptData.note && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Izoh</span>
+                                        <span className="font-medium text-slate-600 text-sm">{receiptData.note}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center pt-4 border-t border-dashed border-slate-200">
                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">JAMI SUMMA</span>
                                     <span className="text-3xl font-black text-blue-600 tracking-tighter tabular-nums">{receiptData.amount.toLocaleString()} <span className="text-xs">uzs</span></span>
                                 </div>
                             </div>
 
-                            <div className="text-center space-y-4">
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=TXN-${receiptData.id}`}
-                                    alt="QR" className="w-24 h-24 mx-auto opacity-80"
-                                />
-                                <p className="text-[9px] font-medium text-slate-400 max-w-[200px] mx-auto uppercase tracking-tighter">
-                                    Ushbu kvitansiya Terra Academy moliyaviy tizimi tomonidan generate qilindi.
+                            <div className="text-center space-y-3">
+                                <div className="inline-block p-3 bg-white border-2 border-slate-200 rounded-2xl">
+                                    <QRCodeSVG
+                                        value={(() => {
+                                            const base = 'https://terra-academy.vercel.app';
+                                            const p = new URLSearchParams({
+                                                txn:    `TXN-${receiptData.id?.slice(-8).toUpperCase()}`,
+                                                name:   receiptData.studentName,
+                                                group:  receiptData.groupName,
+                                                amount: String(receiptData.amount),
+                                                method: receiptData.method,
+                                                date:   format(new Date(receiptData.created_at), 'dd.MM.yyyy HH:mm'),
+                                                month:  `${receiptData.paymentMonth}/${receiptData.paymentYear}`,
+                                            });
+                                            return `${base}/receipt?${p.toString()}`;
+                                        })()}
+                                        size={130}
+                                        level="M"
+                                        includeMargin={false}
+                                        bgColor="#ffffff"
+                                        fgColor="#0f172a"
+                                    />
+                                </div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    Skanerlang — to'lov ma'lumotlari chiqadi
                                 </p>
                             </div>
 
                             <button
-                                onClick={() => window.print()}
-                                className="w-full mt-10 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                                onClick={handleDownloadPDF}
+                                className="w-full mt-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
                             >
-                                <Printer size={16} /> Chop etish
+                                <Download size={16} /> PDF yuklab olish
                             </button>
                         </motion.div>
-                    </div>
+                    </div></ModalPortal>
                 )}
             </AnimatePresence>
         </div>
