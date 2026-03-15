@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ParentProvider } from './context/ParentContext';
 import { Toaster } from 'react-hot-toast';
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -135,7 +136,7 @@ function App() {
 
             {/* Parent Routes */}
             <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
-              <Route element={<MainLayout />}>
+              <Route element={<ParentProvider><MainLayout /></ParentProvider>}>
                 <Route path="/parent/dashboard" element={<ParentDashboard />} />
                 <Route path="/parent/children" element={<ChildPerformance />} />
                 <Route path="/parent/payments" element={<ParentPayments />} />
